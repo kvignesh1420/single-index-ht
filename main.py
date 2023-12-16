@@ -62,15 +62,15 @@ if __name__ == "__main__":
         "d": 1000,
         "label_noise_std": 0.3,
         "tau": 0.2,
-        "num_epochs": 300,
+        "num_epochs": 1000,
         "optimizer": "sgd",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 0.1
+        "lr": 40
     }
     context = setup_runtime_context(context=exp_context)
-    teacher = Teacher(context=context)
-    student = Student(context=context)
+    teacher = Teacher(context=context).to(context["device"])
+    student = Student(context=context).to(context["device"])
 
     X_train = prepare_train_input(context=context)
     y_t_train = teacher(X=X_train)
@@ -85,8 +85,27 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, **test_kwargs)
 
     student_trainer = Trainer(context=context)
-    student_trainer.run(
+
+    # compute alignment
+    W = student.hidden_layer.weight.data.clone()
+    beta = teacher.beta.squeeze().to(context["device"])
+    U, S, Vh = torch.linalg.svd(W, full_matrices=False)
+    print(U.shape, Vh.shape, beta.shape)
+    sim = torch.dot(Vh[0], beta)
+    sim /= torch.norm(Vh[0], p=2)
+    print("initial alignment: {}".format(sim))
+
+    trained_student = student_trainer.run(
         student=student,
         train_loader=train_loader,
         test_loader=test_loader
     )
+
+    # compute alignment
+    W = trained_student.hidden_layer.weight.data
+    beta = teacher.beta.squeeze().to(context["device"])
+    U, S, Vh = torch.linalg.svd(W, full_matrices=False)
+    print(U.shape, Vh.shape, beta.shape)
+    sim = torch.dot(Vh[0], beta)
+    sim /= torch.norm(Vh[0], p=2)
+    print("final alignment: {}".format(sim))

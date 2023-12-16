@@ -13,6 +13,7 @@ class Trainer:
         loss_val = 0
         loss_fn = torch.nn.MSELoss(reduction="sum")
         for batch_idx, (X, y_t) in enumerate(test_loader):
+            X, y_t = X.to(self.context["device"]) , y_t.to(self.context["device"])
             student.zero_grad()
             pred = student(X)
             loss = loss_fn(pred, y_t)
@@ -48,6 +49,7 @@ class Trainer:
         )
         for epoch in tqdm(range(1, self.context["num_epochs"]+1)):
             for batch_idx, (X, y_t) in enumerate(train_loader):
+                X, y_t = X.to(self.context["device"]) , y_t.to(self.context["device"])
                 student.zero_grad()
                 pred = student(X)
                 loss = loss_fn(pred, y_t)
