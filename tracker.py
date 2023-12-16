@@ -7,6 +7,18 @@ class Tracker:
         self.context = context
 
     @torch.no_grad()
+    def probe_weights(self, student, epoch):
+        for idx, layer in enumerate(student.layers):
+            self.plot_svd(
+                W = layer.weight.data,
+                name="{}W{}_epoch{}".format(self.context["vis_dir"], idx, epoch)
+            )
+            self.plot_esd(
+                W = layer.weight.data,
+                name="{}W{}_epoch{}".format(self.context["vis_dir"], idx, epoch)
+            )
+
+    @torch.no_grad()
     def plot_svd(self, W, name):
        S = torch.linalg.svdvals(W)
        plt.bar(x=list(range(S.shape[0])), height=S.cpu().numpy())

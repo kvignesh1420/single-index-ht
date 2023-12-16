@@ -26,13 +26,12 @@ class Teacher(torch.nn.Module):
         out += torch.randn(size=[n]).unsqueeze(1) * label_noise_std
         return out
 
-
-class Student(torch.nn.Module):
+class Student2Layer(torch.nn.Module):
     def __init__(self, context):
         super().__init__()
         self.context = context
         self.init_weights()
-        self.activation_fn = torch.nn.Tanh()
+        self.activation_fn = torch.tanh
 
     def init_weights(self):
         self.hidden_layer = torch.nn.Linear(
@@ -47,10 +46,51 @@ class Student(torch.nn.Module):
             bias=False
         )
         torch.nn.init.normal_(self.final_layer.weight)
+        self.layers = torch.nn.ModuleList([self.hidden_layer, self.final_layer])
 
     def forward(self, X):
         Z = self.hidden_layer(X)
         Z /= np.sqrt(self.context["d"])
+        Z = self.activation_fn(Z)
+        out = self.final_layer(Z)
+        out /= np.sqrt(self.context["h"])
+        return out
+
+class Student3Layer(torch.nn.Module):
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
+        self.init_weights()
+        self.activation_fn = torch.tanh
+
+    def init_weights(self):
+        self.hidden_layer1 = torch.nn.Linear(
+            in_features=self.context["d"],
+            out_features=self.context["h"],
+            bias=False
+        )
+        torch.nn.init.normal_(self.hidden_layer1.weight)
+        self.hidden_layer2 = torch.nn.Linear(
+            in_features=self.context["h"],
+            out_features=self.context["h"],
+            bias=False
+        )
+        torch.nn.init.normal_(self.hidden_layer2.weight)
+        self.final_layer = torch.nn.Linear(
+            in_features=self.context["h"],
+            out_features=1,
+            bias=False
+        )
+        torch.nn.init.normal_(self.final_layer.weight)
+        self.layers = torch.nn.ModuleList([
+            self.hidden_layer1, self.hidden_layer2, self.final_layer])
+
+    def forward(self, X):
+        Z = self.hidden_layer1(X)
+        Z /= np.sqrt(self.context["d"])
+        Z = self.activation_fn(Z)
+        Z = self.hidden_layer2(Z)
+        Z /= np.sqrt(self.context["h"])
         Z = self.activation_fn(Z)
         out = self.final_layer(Z)
         out /= np.sqrt(self.context["h"])

@@ -37,16 +37,7 @@ class Trainer:
             )
         loss_fn = torch.nn.MSELoss()
         loss_values = []
-        # plot svd at init
-        self.tracker.plot_svd(
-            W = student.hidden_layer.weight.data,
-            name="{}W1_epoch0".format(self.context["vis_dir"])
-        )
-        # plot esd at init
-        self.tracker.plot_esd(
-            W = student.hidden_layer.weight.data,
-            name="{}W1_epoch0".format(self.context["vis_dir"])
-        )
+        self.tracker.probe_weights(student=student, epoch=0)
         for epoch in tqdm(range(1, self.context["num_epochs"]+1)):
             for batch_idx, (X, y_t) in enumerate(train_loader):
                 X, y_t = X.to(self.context["device"]) , y_t.to(self.context["device"])
@@ -57,14 +48,7 @@ class Trainer:
                 optimizer.step()
             if epoch%50 == 0:
                 loss_values.append(loss.detach().cpu().numpy())
-                self.tracker.plot_svd(
-                    W = student.hidden_layer.weight.data,
-                    name="{}W1_epoch{}".format(self.context["vis_dir"], epoch)
-                )
-                self.tracker.plot_esd(
-                    W = student.hidden_layer.weight.data,
-                    name="{}W1_epoch{}".format(self.context["vis_dir"], epoch)
-                )
+                self.tracker.probe_weights(student=student, epoch=epoch)
                 self.eval(student=student, test_loader=test_loader)
         plt.plot(loss_values)
         plt.grid(True)
