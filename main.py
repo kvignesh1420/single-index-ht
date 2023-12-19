@@ -65,19 +65,20 @@ def compute_alignment(teacher, student):
 
 if __name__ == "__main__":
     exp_context = {
-        "L": 3,
+        "L": 2,
         "n": 2000,
         "n_test": 200,
-        "batch_size": 32,
+        "batch_size": 2000,
         "h": 1500,
         "d": 1000,
         "label_noise_std": 0.3,
         "tau": 0.2,
         "num_epochs": 1,
-        "optimizer": "sgd",
+        "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 40
+        "lr": 0.1,
+        "probe_freq": 1
     }
     context = setup_runtime_context(context=exp_context)
     teacher = Teacher(context=context).to(context["device"])
@@ -99,8 +100,10 @@ if __name__ == "__main__":
     test_dataset = TeacherDataset(X=X_test, y_t=y_t_test)
     test_kwargs = {"batch_size": context["batch_size"], "shuffle": True}
     test_loader = DataLoader(test_dataset, **test_kwargs)
-
     student_trainer = Trainer(context=context)
+
+    print(teacher)
+    print(student)
 
     sim = compute_alignment(teacher=teacher, student=student)
     print("initial alignment: {}".format(sim))

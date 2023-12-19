@@ -46,7 +46,7 @@ class Trainer:
                 loss = loss_fn(pred, y_t)
                 loss.backward()
                 optimizer.step()
-            if epoch%50 == 0:
+            if epoch%self.context["probe_freq"] == 0:
                 loss_values.append(loss.detach().cpu().numpy())
                 self.tracker.probe_weights(student=student, epoch=epoch)
                 self.eval(student=student, test_loader=test_loader)
@@ -54,5 +54,6 @@ class Trainer:
         plt.grid(True)
         plt.savefig("{}loss.jpg".format(self.context["vis_dir"]))
         plt.clf()
+        self.tracker.plot_initial_final_esd()
         return student
 
