@@ -17,10 +17,10 @@ class Teacher(torch.nn.Module):
     def forward(self, X):
         Z = X @ self.beta
         out = self.activation_fn(Z)
-        # apply input norm square
-        norm_scale = self.context["tau"]/self.context["d"]
-        out += norm_scale * torch.norm(X, p=2, dim=1).unsqueeze(1)
-        # apply noise
+        ## apply input norm square
+        # norm_scale = self.context["tau"]/self.context["d"]
+        # out += norm_scale * torch.norm(X, p=2, dim=1).unsqueeze(1)
+        ## apply noise
         n = X.shape[0]
         label_noise_std = self.context["label_noise_std"]
         out += torch.randn(size=[n]).unsqueeze(1) * label_noise_std
@@ -46,7 +46,7 @@ class Student2Layer(torch.nn.Module):
             bias=False
         )
         torch.nn.init.normal_(self.final_layer.weight)
-        self.layers = torch.nn.ModuleList([self.hidden_layer, self.final_layer])
+        self.layers = [self.hidden_layer, self.final_layer]
 
     def forward(self, X):
         Z = self.hidden_layer(X)
@@ -82,8 +82,7 @@ class Student3Layer(torch.nn.Module):
             bias=False
         )
         torch.nn.init.normal_(self.final_layer.weight)
-        self.layers = torch.nn.ModuleList([
-            self.hidden_layer1, self.hidden_layer2, self.final_layer])
+        self.layers = [self.hidden_layer1, self.hidden_layer2, self.final_layer]
 
     def forward(self, X):
         Z = self.hidden_layer1(X)

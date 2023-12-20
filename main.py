@@ -2,6 +2,8 @@ import os
 import json
 import hashlib
 import sys
+import logging
+logger = logging.getLogger(__name__)
 import torch
 from torch.utils.data import DataLoader
 from torch.distributions.multivariate_normal import MultivariateNormal
@@ -26,18 +28,17 @@ def setup_runtime_context(context):
     results_dir = context["out_dir"] + context["config_uuid"] + "/results/"
     results_file = results_dir + "run.txt"
     if not os.path.exists(vis_dir):
-        print("Vis folder does not exist. Creating {}".format(vis_dir))
+        logger.info("Vis folder does not exist. Creating {}".format(vis_dir))
         os.makedirs(vis_dir)
     else:
-        print("Vis folder {} already exists!".format(vis_dir))
+        logger.info("Vis folder {} already exists!".format(vis_dir))
     if not os.path.exists(results_dir):
-        print("Resuls folder does not exist. Creating {}".format(results_dir))
+        logger.info("Resuls folder does not exist. Creating {}".format(results_dir))
         os.makedirs(results_dir)
     else:
-        print("Resuls folder {} already exists!".format(results_dir))
+        logger.info("Resuls folder {} already exists!".format(results_dir))
     context["vis_dir"] = vis_dir
     context["results_file"] = results_file
-
     return context
 
 def prepare_train_input(context):
@@ -58,7 +59,7 @@ def compute_alignment(teacher, student):
     W = student.layers[0].weight.data.clone()
     beta = teacher.beta.squeeze().to(context["device"])
     U, S, Vh = torch.linalg.svd(W, full_matrices=False)
-    # print(U.shape, Vh.shape, beta.shape)
+    # logger.info(U.shape, Vh.shape, beta.shape)
     sim = torch.dot(Vh[0], beta)
     sim /= torch.norm(Vh[0], p=2)
     return sim
@@ -77,10 +78,19 @@ if __name__ == "__main__":
         "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 0.1,
+        "lr": 2000,
         "probe_freq": 1
     }
     context = setup_runtime_context(context=exp_context)
+    logging.basicConfig(
+        filename=context["results_file"],
+        filemode='a',
+        format='%(asctime)s, %(name)s %(levelname)s %(message)s',
+        level=logging.INFO
+    )
+    logger.addHandler(logging.StreamHandler(sys.stdout))
+    logger.info("*"*100)
+    logger.info("context: \n{}".format(context))
     teacher = Teacher(context=context).to(context["device"])
     if context["L"] == 2:
         student = Student2Layer(context=context).to(context["device"])
@@ -102,11 +112,12 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, **test_kwargs)
     student_trainer = Trainer(context=context)
 
-    print(teacher)
-    print(student)
+    logger.info("Teacher: {}".format(teacher))
+    logger.info("Student: {}".format(student))
 
     sim = compute_alignment(teacher=teacher, student=student)
-    print("initial alignment: {}".format(sim))
+    logger.info("initial alignment (cosine of angle) between "\
+                 "link function and first PC of W: {}".format(sim))
 
     trained_student = student_trainer.run(
         student=student,
@@ -115,4 +126,5 @@ if __name__ == "__main__":
     )
 
     sim = compute_alignment(teacher=teacher, student=trained_student)
-    print("final alignment: {}".format(sim))
+    logger.info("final alignment (cosine of angle) between" \
+                 "link function and first PC of W: {}".format(sim))
