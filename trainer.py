@@ -59,5 +59,6 @@ class Trainer:
                 self.eval(student=student, test_loader=test_loader)
         self.tracker.plot_training_loss()
         self.tracker.plot_val_loss()
+        self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_esd()
         return student

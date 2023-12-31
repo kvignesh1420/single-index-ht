@@ -8,6 +8,7 @@ class Tracker:
     def __init__(self, context):
         self.context = context
         self.epoch_weight_esd = OrderedDict()
+        self.epoch_weight_vals = OrderedDict()
         self.training_loss = []
         self.val_loss = []
 
@@ -37,15 +38,47 @@ class Tracker:
     def probe_weights(self, student, epoch):
         for idx, layer in enumerate(student.layers):
             W = layer.weight.data.clone()
-            S_W = torch.linalg.svdvals(W)
             name="{}W{}_epoch{}".format(self.context["vis_dir"], idx, epoch)
-            self.plot_svd(S_W = S_W, name=name)
+            self.plot_weights(W=W, name=name)
+            if epoch not in self.epoch_weight_vals:
+                self.epoch_weight_vals[epoch] = OrderedDict()
+            self.epoch_weight_vals[epoch][idx] = W
+            S_W = torch.linalg.svdvals(W)
+            self.plot_svd(S_W=S_W, name=name)
             WtW = W.t() @ W
             S_WtW = torch.linalg.svdvals(WtW)
-            self.plot_esd(S_WtW = S_WtW, name=name)
+            self.plot_esd(S_WtW=S_WtW, name=name)
             if epoch not in self.epoch_weight_esd:
                 self.epoch_weight_esd[epoch] = OrderedDict()
             self.epoch_weight_esd[epoch][idx] = S_WtW
+
+    @torch.no_grad()
+    def plot_weights(self, W, name):
+        W = torch.flatten(W)
+        plt.hist(W, bins=100, density=True)
+        plt.xlabel("val")
+        plt.ylabel("density(val)")
+        plt.savefig("{}_vals.jpg".format(name))
+        plt.clf()
+
+    @torch.no_grad()
+    def plot_initial_final_weight_vals(self):
+        epochs = list(self.epoch_weight_vals.keys())
+        initial_epoch = epochs[0]
+        final_epoch = epochs[-1]
+        for idx in self.epoch_weight_vals[0]:
+            initial_W = self.epoch_weight_vals[initial_epoch][idx]
+            final_W = self.epoch_weight_vals[final_epoch][idx]
+            initial_vals = torch.flatten(initial_W).cpu().numpy()
+            final_vals = torch.flatten(final_W).cpu().numpy()
+            plt.hist(initial_vals, bins=100, density=True, color="red", alpha=0.5, edgecolor='red', label="initial")
+            plt.hist(final_vals, bins=100, density=True, color="blue", alpha=0.5, edgecolor='blue', label="epoch{}".format(final_epoch))
+            plt.xlabel("vals")
+            plt.ylabel("density(vals)")
+            plt.legend()
+            name="{}W{}".format(self.context["vis_dir"], idx)
+            plt.savefig("{}_initial_final_vals.jpg".format(name))
+            plt.clf()
 
     @torch.no_grad()
     def plot_svd(self, S_W, name):
