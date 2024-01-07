@@ -30,8 +30,9 @@ class Student2Layer(torch.nn.Module):
     def __init__(self, context):
         super().__init__()
         self.context = context
-        self.init_weights()
         self.activation_fn = torch.tanh
+        self.init_weights()
+        self._assign_hooks()
 
     def init_weights(self):
         self.hidden_layer = torch.nn.Linear(
@@ -47,6 +48,19 @@ class Student2Layer(torch.nn.Module):
         )
         torch.nn.init.normal_(self.final_layer.weight)
         self.layers = [self.hidden_layer, self.final_layer]
+
+    @torch.no_grad()
+    def _probe_affine_features(self, idx):
+        def hook(model, inp, out):
+            self.affine_features[idx] = out.detach()
+        return hook
+
+    @torch.no_grad()
+    def _assign_hooks(self):
+        self.affine_features = {}
+        self.hidden_layer.register_forward_hook(
+            self._probe_affine_features(idx=0)
+        )
 
     def forward(self, X):
         Z = self.hidden_layer(X)

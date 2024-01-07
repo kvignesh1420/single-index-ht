@@ -68,8 +68,9 @@ if __name__ == "__main__":
     exp_context = {
         "L": 2,
         "n": 2000,
-        "n_test": 200,
         "batch_size": 2000,
+        "n_test": 200,
+        "batch_size_test": 200,
         "h": 1500,
         "d": 1000,
         "label_noise_std": 0.3,
@@ -78,7 +79,8 @@ if __name__ == "__main__":
         "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 2000,
+        "lr": 0.1,
+        "reg_lamba": 0.01,
         "probe_freq": 1
     }
     context = setup_runtime_context(context=exp_context)
@@ -98,6 +100,8 @@ if __name__ == "__main__":
         student = Student3Layer(context=context).to(context["device"])
     else:
         sys.exit("L should be either 2 or 3.")
+    # fix last layer during training
+    student.final_layer.requires_grad_(requires_grad=False)
 
     X_train = prepare_train_input(context=context)
     y_t_train = teacher(X=X_train)
@@ -105,10 +109,17 @@ if __name__ == "__main__":
     train_kwargs = {"batch_size": context["batch_size"], "shuffle": True}
     train_loader = DataLoader(train_dataset, **train_kwargs)
 
+    # additional training data for computing feature metrics
+    X_probe = prepare_train_input(context=context)
+    y_t_probe = teacher(X=X_probe)
+    probe_dataset = TeacherDataset(X=X_probe, y_t=y_t_probe)
+    probe_kwargs = {"batch_size": context["n"], "shuffle": True}
+    probe_loader = DataLoader(probe_dataset, **probe_kwargs)
+
     X_test = prepare_test_input(context=context)
     y_t_test = teacher(X=X_test)
     test_dataset = TeacherDataset(X=X_test, y_t=y_t_test)
-    test_kwargs = {"batch_size": context["batch_size"], "shuffle": True}
+    test_kwargs = {"batch_size": context["batch_size_test"], "shuffle": True}
     test_loader = DataLoader(test_dataset, **test_kwargs)
     student_trainer = Trainer(context=context)
 
@@ -122,7 +133,8 @@ if __name__ == "__main__":
     trained_student = student_trainer.run(
         student=student,
         train_loader=train_loader,
-        test_loader=test_loader
+        test_loader=test_loader,
+        probe_loader=probe_loader,
     )
 
     sim = compute_alignment(teacher=teacher, student=trained_student)
