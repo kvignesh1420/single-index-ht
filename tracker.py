@@ -14,6 +14,7 @@ class Tracker:
         self.epoch_activation_esd = OrderedDict()
         self.epoch_activation_vals = OrderedDict()
         self.epoch_KTA = OrderedDict()
+        self.epoch_W_beta_alignment = OrderedDict()
         self.training_loss = OrderedDict()
         self.val_loss = OrderedDict()
 
@@ -44,7 +45,29 @@ class Tracker:
         plt.clf()
 
     @torch.no_grad()
-    def probe_weights(self, student, epoch):
+    def plot_losses(self):
+        # combined plots for easy viz
+        epochs = list(self.val_loss.keys())
+        training_losses = list(self.training_loss.values())
+        val_losses = list(self.val_loss.values())
+        plt.plot(epochs, training_losses, label="train")
+        plt.plot(epochs, val_losses, label="test", linestyle='dashed')
+        plt.xlabel("epoch")
+        plt.ylabel("loss")
+        plt.grid(True)
+        plt.legend()
+        plt.savefig("{}losses.jpg".format(self.context["vis_dir"]))
+        plt.clf()
+
+    @torch.no_grad()
+    def probe_weights(self, teacher, student, epoch):
+        # W and beta alignment(applicable only for first hidden layer)
+        W_beta_alignment = self.compute_W_beta_alignment(teacher=teacher, student=student)
+        if epoch not in self.epoch_W_beta_alignment:
+            self.epoch_W_beta_alignment[epoch] = OrderedDict()
+        self.epoch_W_beta_alignment[epoch][0] = W_beta_alignment
+        logger.info("W_beta_alignment for epoch:{} layer: 0 = {}".format(epoch, W_beta_alignment))
+
         for idx, layer in enumerate(student.layers):
             W = layer.weight.data.clone()
             name="{}W{}_epoch{}".format(self.context["vis_dir"], idx, epoch)
@@ -180,7 +203,34 @@ class Tracker:
         plt.xlabel("epochs")
         plt.ylabel("KTA")
         plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
         name="{}KTA.jpg".format(self.context["vis_dir"])
+        plt.savefig(name)
+        plt.clf()
+
+    @torch.no_grad()
+    def compute_W_beta_alignment(self, teacher, student):
+        W = student.layers[0].weight.data.clone()
+        beta = teacher.beta.squeeze().to(self.context["device"])
+        U, S, Vh = torch.linalg.svd(W, full_matrices=False)
+        # logger.info(U.shape, Vh.shape, beta.shape)
+        sim = torch.dot(Vh[0], beta)
+        sim /= torch.norm(Vh[0], p=2)
+        return abs(sim)
+
+    @torch.no_grad()
+    def plot_epoch_W_beta_alignment(self):
+        epochs = list(self.epoch_W_beta_alignment.keys())
+        layer_idxs = list(self.epoch_W_beta_alignment[epochs[0]].keys())
+        for layer_idx in layer_idxs:
+            vals = [self.epoch_W_beta_alignment[e][layer_idx] for e in epochs]
+            plt.plot(epochs, vals, label="layer:{}".format(layer_idx))
+        plt.xlabel("epochs")
+        plt.ylabel("$sim(W, \\beta^*)$")
+        plt.legend()
+        plt.grid(True)
+        name="{}W_beta_alignment.jpg".format(self.context["vis_dir"])
         plt.savefig(name)
         plt.clf()
 

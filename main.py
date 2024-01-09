@@ -55,14 +55,6 @@ def prepare_test_input(context):
     X = dist.sample(sample_shape=[n])
     return X
 
-def compute_alignment(teacher, student):
-    W = student.layers[0].weight.data.clone()
-    beta = teacher.beta.squeeze().to(context["device"])
-    U, S, Vh = torch.linalg.svd(W, full_matrices=False)
-    # logger.info(U.shape, Vh.shape, beta.shape)
-    sim = torch.dot(Vh[0], beta)
-    sim /= torch.norm(Vh[0], p=2)
-    return sim
 
 if __name__ == "__main__":
     exp_context = {
@@ -126,17 +118,10 @@ if __name__ == "__main__":
     logger.info("Teacher: {}".format(teacher))
     logger.info("Student: {}".format(student))
 
-    sim = compute_alignment(teacher=teacher, student=student)
-    logger.info("initial alignment (cosine of angle) between "\
-                 "link function and first PC of W: {}".format(sim))
-
     trained_student = student_trainer.run(
+        teacher=teacher,
         student=student,
         train_loader=train_loader,
         test_loader=test_loader,
         probe_loader=probe_loader,
     )
-
-    sim = compute_alignment(teacher=teacher, student=trained_student)
-    logger.info("final alignment (cosine of angle) between" \
-                 "link function and first PC of W: {}".format(sim))

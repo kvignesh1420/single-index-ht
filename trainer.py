@@ -70,9 +70,9 @@ class Trainer:
             )
         return optimizer
 
-    def run(self, student, train_loader, test_loader, probe_loader):
+    def run(self, teacher, student, train_loader, test_loader, probe_loader):
         optimizer = self.get_optimizer(student=student)
-        self.tracker.probe_weights(student=student, epoch=0)
+        self.tracker.probe_weights(teacher=teacher, student=student, epoch=0)
         self.tracker.probe_features(student=student, probe_loader=probe_loader, epoch=0)
         self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, epoch=0)
         loss_fn = torch.nn.MSELoss()
@@ -92,14 +92,14 @@ class Trainer:
             # logger.info("Epoch: {} training loss: {}".format(epoch, epoch_loss))
             if epoch%self.context["probe_freq"] == 0:
                 # self.tracker.store_training_loss(loss=epoch_loss, epoch=epoch)
-                self.tracker.probe_weights(student=student, epoch=epoch)
+                self.tracker.probe_weights(teacher=teacher, student=student, epoch=epoch)
                 self.tracker.probe_features(student=student, probe_loader=probe_loader, epoch=epoch)
                 self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, epoch=epoch)
-        self.tracker.plot_training_loss()
-        self.tracker.plot_val_loss()
+        self.tracker.plot_losses()
         self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_weight_esd()
         self.tracker.plot_initial_final_activation_vals()
         self.tracker.plot_initial_final_activation_esd()
         self.tracker.plot_epoch_KTA()
+        self.tracker.plot_epoch_W_beta_alignment()
         return student
