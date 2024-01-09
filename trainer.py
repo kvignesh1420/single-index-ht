@@ -14,7 +14,6 @@ class Trainer:
 
     @torch.no_grad()
     def compute_last_layer_weight(self, Z, y_t):
-        
         n = Z.shape[0]
         I_h = torch.eye(Z.shape[1]).to(self.context["device"])
         a_hat = torch.linalg.inv(Z.t() @ Z + self.context["reg_lamba"]*n*I_h) @ Z.t() @ y_t
@@ -95,6 +94,10 @@ class Trainer:
                 self.tracker.probe_weights(teacher=teacher, student=student, epoch=epoch)
                 self.tracker.probe_features(student=student, probe_loader=probe_loader, epoch=epoch)
                 self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, epoch=epoch)
+        self.plot_results()
+        return student
+
+    def plot_results(self):
         self.tracker.plot_losses()
         self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_weight_esd()
@@ -102,4 +105,88 @@ class Trainer:
         self.tracker.plot_initial_final_activation_esd()
         self.tracker.plot_epoch_KTA()
         self.tracker.plot_epoch_W_beta_alignment()
-        return student
+
+class BulkTrainer:
+    def __init__(self, contexts, varying_params):
+        self.contexts = contexts
+        self.varying_params = varying_params
+        self.trainers = []
+        for context in contexts:
+            trainer = Trainer(context=context)
+            self.trainers.append(trainer)
+
+    def run(self, teacher, students, train_loader, test_loader, probe_loader):
+        for trainer, student in zip(self.trainers, students):
+            trainer.run(
+                teacher=teacher,
+                student=student,
+                train_loader=train_loader,
+                test_loader=test_loader,
+                probe_loader=probe_loader,
+            )
+        self.plot_results()
+        return students
+
+    def plot_results(self):
+        self.plot_losses()
+        self.plot_epoch_KTA()
+        self.plot_epoch_W_beta_alignment()
+
+    @torch.no_grad()
+    def plot_losses(self):
+        for trainer, context in zip(self.trainers, self.contexts):
+            epochs = list(trainer.tracker.val_loss.keys())
+            training_losses = list(trainer.tracker.training_loss.values())
+            val_losses = list(trainer.tracker.val_loss.values())
+            train_label = "train"
+            test_label = "test"
+            for param in self.varying_params:
+                train_label = "{} {}={}".format(train_label, param, context[param])
+                test_label = "{} {}={}".format(test_label, param, context[param])
+            plt.plot(epochs, training_losses, label=train_label)
+            plt.plot(epochs, val_losses, label=test_label, linestyle='dashed')
+        plt.xlabel("epoch")
+        plt.ylabel("loss")
+        plt.grid(True)
+        plt.legend()
+        plt.savefig("{}bulk_losses.jpg".format(context["bulk_vis_dir"]))
+        plt.clf()
+
+    @torch.no_grad()
+    def plot_epoch_KTA(self):
+        for trainer, context in zip(self.trainers, self.contexts):
+            epochs = list(trainer.tracker.epoch_KTA.keys())
+            layer_idxs = list(trainer.tracker.epoch_KTA[epochs[0]].keys())
+            for layer_idx in layer_idxs:
+                vals = [trainer.tracker.epoch_KTA[e][layer_idx] for e in epochs]
+                label = "layer:{}".format(layer_idx)
+                for param in self.varying_params:
+                    label = "{} {}={}".format(label, param, context[param])
+                plt.plot(epochs, vals, label=label)
+        plt.xlabel("epochs")
+        plt.ylabel("KTA")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        name="{}bulk_KTA.jpg".format(context["bulk_vis_dir"])
+        plt.savefig(name)
+        plt.clf()
+
+    @torch.no_grad()
+    def plot_epoch_W_beta_alignment(self):
+        for trainer, context in zip(self.trainers, self.contexts):
+            epochs = list(trainer.tracker.epoch_W_beta_alignment.keys())
+            layer_idxs = list(trainer.tracker.epoch_W_beta_alignment[epochs[0]].keys())
+            for layer_idx in layer_idxs:
+                vals = [trainer.tracker.epoch_W_beta_alignment[e][layer_idx] for e in epochs]
+                label = "layer:{}".format(layer_idx)
+                for param in self.varying_params:
+                    label = "{} {}={}".format(label, param, context[param])
+                plt.plot(epochs, vals, label=label)
+        plt.xlabel("epochs")
+        plt.ylabel("$sim(W, \\beta^*)$")
+        plt.legend()
+        plt.grid(True)
+        name="{}bulk_W_beta_alignment.jpg".format(context["bulk_vis_dir"])
+        plt.savefig(name)
+        plt.clf()
