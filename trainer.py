@@ -93,7 +93,6 @@ class Trainer:
                     # probe loader.
                     # self.tracker.store_training_loss(loss=epoch_loss, step=step)
                     self.tracker.probe_weights(teacher=teacher, student=student, step=step)
-                    self.tracker.plot_W_and_grad_alignment(X=X, y_t=y_t, student=student, step=step)
                     self.tracker.probe_features(student=student, probe_loader=probe_loader, step=step)
                     self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, step=step)
             epoch_loss /= self.context["n"]
@@ -106,6 +105,7 @@ class Trainer:
         self.tracker.plot_step_weight_stable_rank()
         self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_weight_esd()
+        self.tracker.plot_initial_final_W_and_update_alignment()
         self.tracker.plot_step_activation_stable_rank()
         self.tracker.plot_step_activation_effective_ranks()
         self.tracker.plot_initial_final_activation_vals()

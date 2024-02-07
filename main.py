@@ -68,10 +68,10 @@ if __name__ == "__main__":
         "label_noise_std": 0.3,
         "tau": 0.2,
         "num_epochs": 1,
-        "optimizer": "sgd",
+        "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 0.1,
+        "lr": 1,
         "reg_lamba": 0.01,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.

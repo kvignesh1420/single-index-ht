@@ -406,52 +406,27 @@ class Tracker:
         plt.clf()
 
     @torch.no_grad()
-    def plot_W_and_grad_alignment(self, X, y_t, student, step):
-        W = student.layers[0].weight.data.clone()
-        a = student.layers[1].weight.data.clone()
-        # W shape: h x d
-        # a shape: 1 x h
-        # X shape: batch_size x d
-        # y_t shape: batch_size x 1
-        print("step: {} W shape: {} a shape: {} X shape: {} y_t shape:{}".format(
-            step, W.shape, a.shape, X.shape, y_t.shape))
-        # approx_G = (X.t() @ y_t @ a).t()
-        G = student.layers[0].weight.grad.clone()
-        signG = torch.sign(G)
-        # if self.context["optimizer"] == "adam":
-        print("shape of G: {}".format(G.shape))
-        U_G, S_G, Vh_G = torch.linalg.svd(G, full_matrices=False)
-        U_signG, S_signG, Vh_signG = torch.linalg.svd(signG, full_matrices=False)
-        U_W, S_W, Vh_W = torch.linalg.svd(W, full_matrices=False)
-        S_signG_logvals = torch.log10(S_signG).detach().cpu().numpy()
-        S_G_logvals = torch.log10(S_G).detach().cpu().numpy()
-        S_W_logvals = torch.log10(S_W).detach().cpu().numpy()
-        plt.hist(S_G_logvals, bins=100, log=True, density=True, color="red", alpha=0.5, edgecolor='red', label="G")
-        plt.hist(S_signG_logvals, bins=100, log=True, density=True, color="green", alpha=0.5, edgecolor='green', label="signG")
-        plt.hist(S_W_logvals, bins=100, log=True, density=True, color="violet", alpha=0.3, edgecolor='violet', label="W")
-        plt.xlabel("$\log_{10}(\lambda_i)$")
-        plt.ylabel("$\log_{10}(ESD)$")
-        plt.legend()
-        plt.tight_layout()
-        name="{}W_G_step{}".format(self.context["vis_dir"], step)
-        plt.savefig("{}_esd.jpg".format(name))
-        plt.clf()
+    def plot_initial_final_W_and_update_alignment(self):
+        steps = list(self.step_weight_vals.keys())
+        initial_step = steps[0]
+        final_step = steps[-1]
+        for idx in self.step_weight_vals[0]:
+            initial_W = self.step_weight_vals[initial_step][idx]
+            final_W = self.step_weight_vals[final_step][idx]
 
-        plt.plot(S_G[:10])
-        plt.xlabel("i")
-        plt.ylabel("$\lambda_i$")
-        plt.grid()
-        plt.tight_layout()
-        name="{}G{}".format(self.context["vis_dir"], step)
-        plt.savefig("{}_sv.jpg".format(name))
-        plt.clf()
+            U_initW, S_initW, Vh_initW = torch.linalg.svd(initial_W, full_matrices=False)
+            U_finW, S_finW, Vh_finW = torch.linalg.svd(final_W, full_matrices=False)
 
-        name="{}W_G_pc_sim_step{}.jpg".format(self.context["vis_dir"], step)
-        self.plot_pc_sims(U_W=U_W, U_G=U_G, Vh_W=Vh_W, Vh_G=Vh_G, name=name)
+            M = final_W - initial_W
+            U_M, S_M, Vh_M = torch.linalg.svd(M, full_matrices=False)
 
-        name="{}W_signG_pc_sim_step{}.jpg".format(self.context["vis_dir"], step)
-        self.plot_pc_sims(U_W=U_W, U_G=U_signG, Vh_W=Vh_W, Vh_G=Vh_signG, name=name)
+            print("initial_W shape: {} final_W: {} update shape: {}".format(
+                initial_W.shape, final_W.shape, M.shape))
 
+            # since we consider the update matrix to contain the signal:
+            # we measure the singular vector alignments of M and final_W
+            name="{}W{}_final_M_pc_sim.jpg".format(self.context["vis_dir"], idx)
+            self.plot_pc_sims(U_W=U_finW, U_G=U_M, Vh_W=Vh_finW, Vh_G=Vh_M, name=name)
 
     @torch.no_grad()
     def plot_pc_sims(self, U_W, U_G, Vh_W, Vh_G, name):
