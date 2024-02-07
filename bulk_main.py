@@ -70,6 +70,7 @@ if __name__ == "__main__":
         "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
+        "lr": [0.1, 1, 10, 2000],
         "reg_lamba": 0.01,
         "probe_freq": 1
     }
@@ -107,9 +108,10 @@ if __name__ == "__main__":
     test_kwargs = {"batch_size": base_context["batch_size_test"], "shuffle": True}
     test_loader = DataLoader(test_dataset, **test_kwargs)
 
-    lrs = [0.001, 0.01, 0.06, 0.1]
     students = []
     contexts = []
+    varying_params = ["lr"]
+    lrs = base_context["lr"]
     # varying learning rates for students
     for idx, lr in enumerate(lrs):
         context = deepcopy(base_context)
@@ -129,7 +131,7 @@ if __name__ == "__main__":
         logger.info("Student: {}".format(student))
     logger.info("Teacher: {}".format(teacher))
 
-    bulk_student_trainer = BulkTrainer(contexts=contexts, varying_params=["lr"])
+    bulk_student_trainer = BulkTrainer(contexts=contexts, varying_params=varying_params)
     trained_students = bulk_student_trainer.run(
         teacher=teacher,
         students=students,

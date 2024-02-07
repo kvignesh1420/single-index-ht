@@ -20,9 +20,9 @@ class Trainer:
         return a_hat
 
     @torch.no_grad()
-    def eval(self, student, probe_loader, test_loader, epoch):
+    def eval(self, student, probe_loader, test_loader, step):
         loss_fn = torch.nn.MSELoss()
-        epoch_loss = 0
+        step_loss = 0
         for batch_idx, (X, y_t) in enumerate(probe_loader):
             # ensure only one-batch of data for metrics on full-dataset
             assert batch_idx == 0
@@ -33,12 +33,12 @@ class Trainer:
         Z = student.activation_fn(Z)
         a_hat = self.compute_last_layer_weight(Z=Z, y_t=y_t)
         pred = Z @ a_hat
-        epoch_loss = loss_fn(pred, y_t)
-        self.tracker.store_training_loss(loss=epoch_loss, epoch=epoch)
-        logger.info("Training (probe) loss: {}".format(epoch_loss))
+        step_loss = loss_fn(pred, y_t)
+        self.tracker.store_training_loss(loss=step_loss, step=step)
+        logger.info("Training (probe) loss: {}".format(step_loss))
 
         # use a_hat to compute loss
-        epoch_loss = 0
+        step_loss = 0
         for batch_idx, (X, y_t) in enumerate(test_loader):
             X, y_t = X.to(self.context["device"]) , y_t.to(self.context["device"])
             student.zero_grad()
@@ -48,10 +48,10 @@ class Trainer:
             Z = student.activation_fn(Z)
             pred = Z @ a_hat
             loss = loss_fn(pred, y_t)
-            epoch_loss += loss.detach().cpu().numpy() * X.shape[0]
-        epoch_loss /= self.context["n_test"]
-        self.tracker.store_val_loss(loss=epoch_loss, epoch=epoch)
-        logger.info("Val loss: {}".format(epoch_loss))
+            step_loss += loss.detach().cpu().numpy() * X.shape[0]
+        step_loss /= self.context["n_test"]
+        self.tracker.store_val_loss(loss=step_loss, step=step)
+        logger.info("Val loss: {}".format(step_loss))
 
     def get_optimizer(self, student):
         if self.context["optimizer"] == "sgd":
@@ -71,13 +71,16 @@ class Trainer:
 
     def run(self, teacher, student, train_loader, test_loader, probe_loader):
         optimizer = self.get_optimizer(student=student)
-        self.tracker.probe_weights(teacher=teacher, student=student, epoch=0)
-        self.tracker.probe_features(student=student, probe_loader=probe_loader, epoch=0)
-        self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, epoch=0)
+        self.tracker.plot_init_W_pc_and_beta_alignment(student=student, teacher=teacher)
+        self.tracker.probe_weights(teacher=teacher, student=student, step=0)
+        self.tracker.probe_features(student=student, probe_loader=probe_loader, step=0)
+        self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, step=0)
         loss_fn = torch.nn.MSELoss()
+        num_batches = int(np.ceil(self.context["n"]/self.context["batch_size"]))
         for epoch in tqdm(range(1, self.context["num_epochs"]+1)):
             epoch_loss = 0
             for batch_idx, (X, y_t) in enumerate(train_loader):
+                step = (epoch-1)*num_batches + batch_idx + 1
                 X, y_t = X.to(self.context["device"]) , y_t.to(self.context["device"])
                 student.zero_grad()
                 pred = student(X)
@@ -85,15 +88,18 @@ class Trainer:
                 loss.backward()
                 optimizer.step()
                 epoch_loss += loss.detach().cpu().numpy() * X.shape[0]
+                if step%self.context["probe_freq_steps"] == 0:
+                    # The train loss is computed by performing ridge regression on the
+                    # probe loader.
+                    # self.tracker.store_training_loss(loss=epoch_loss, step=step)
+                    self.tracker.plot_step_weighted_pc_align_stddev()
+                    self.tracker.plot_step_pc_align_stddev()
+                    self.tracker.probe_weights(teacher=teacher, student=student, step=step)
+                    self.tracker.probe_features(student=student, probe_loader=probe_loader, step=step)
+                    self.tracker.plot_W_and_grad_alignment(X=X, y_t=y_t, student=student, step=step)
+                    self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, step=step)
             epoch_loss /= self.context["n"]
-            # we perform ridge regression on the probe loader
-            # to calculate the train loss.
             # logger.info("Epoch: {} training loss: {}".format(epoch, epoch_loss))
-            if epoch%self.context["probe_freq"] == 0:
-                # self.tracker.store_training_loss(loss=epoch_loss, epoch=epoch)
-                self.tracker.probe_weights(teacher=teacher, student=student, epoch=epoch)
-                self.tracker.probe_features(student=student, probe_loader=probe_loader, epoch=epoch)
-                self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, epoch=epoch)
         self.plot_results()
         return student
 
@@ -103,8 +109,8 @@ class Trainer:
         self.tracker.plot_initial_final_weight_esd()
         self.tracker.plot_initial_final_activation_vals()
         self.tracker.plot_initial_final_activation_esd()
-        self.tracker.plot_epoch_KTA()
-        self.tracker.plot_epoch_W_beta_alignment()
+        self.tracker.plot_step_KTA()
+        self.tracker.plot_step_W_beta_alignment()
 
 class BulkTrainer:
     def __init__(self, contexts, varying_params):
@@ -129,13 +135,13 @@ class BulkTrainer:
 
     def plot_results(self):
         self.plot_losses()
-        self.plot_epoch_KTA()
-        self.plot_epoch_W_beta_alignment()
+        self.plot_step_KTA()
+        self.plot_step_W_beta_alignment()
 
     @torch.no_grad()
     def plot_losses(self):
         for trainer, context in zip(self.trainers, self.contexts):
-            epochs = list(trainer.tracker.val_loss.keys())
+            steps = list(trainer.tracker.val_loss.keys())
             training_losses = list(trainer.tracker.training_loss.values())
             val_losses = list(trainer.tracker.val_loss.values())
             train_label = "train"
@@ -143,9 +149,9 @@ class BulkTrainer:
             for param in self.varying_params:
                 train_label = "{} {}={}".format(train_label, param, context[param])
                 test_label = "{} {}={}".format(test_label, param, context[param])
-            plt.plot(epochs, training_losses, label=train_label)
-            plt.plot(epochs, val_losses, label=test_label, linestyle='dashed')
-        plt.xlabel("epoch")
+            plt.plot(steps, training_losses, label=train_label)
+            plt.plot(steps, val_losses, label=test_label, linestyle='dashed')
+        plt.xlabel("step")
         plt.ylabel("loss")
         plt.grid(True)
         plt.legend()
@@ -153,17 +159,17 @@ class BulkTrainer:
         plt.clf()
 
     @torch.no_grad()
-    def plot_epoch_KTA(self):
+    def plot_step_KTA(self):
         for trainer, context in zip(self.trainers, self.contexts):
-            epochs = list(trainer.tracker.epoch_KTA.keys())
-            layer_idxs = list(trainer.tracker.epoch_KTA[epochs[0]].keys())
+            steps = list(trainer.tracker.step_KTA.keys())
+            layer_idxs = list(trainer.tracker.step_KTA[steps[0]].keys())
             for layer_idx in layer_idxs:
-                vals = [trainer.tracker.epoch_KTA[e][layer_idx] for e in epochs]
+                vals = [trainer.tracker.step_KTA[e][layer_idx] for e in steps]
                 label = "layer:{}".format(layer_idx)
                 for param in self.varying_params:
                     label = "{} {}={}".format(label, param, context[param])
-                plt.plot(epochs, vals, label=label)
-        plt.xlabel("epochs")
+                plt.plot(steps, vals, label=label)
+        plt.xlabel("steps")
         plt.ylabel("KTA")
         plt.legend()
         plt.grid(True)
@@ -173,17 +179,17 @@ class BulkTrainer:
         plt.clf()
 
     @torch.no_grad()
-    def plot_epoch_W_beta_alignment(self):
+    def plot_step_W_beta_alignment(self):
         for trainer, context in zip(self.trainers, self.contexts):
-            epochs = list(trainer.tracker.epoch_W_beta_alignment.keys())
-            layer_idxs = list(trainer.tracker.epoch_W_beta_alignment[epochs[0]].keys())
+            steps = list(trainer.tracker.step_W_beta_alignment.keys())
+            layer_idxs = list(trainer.tracker.step_W_beta_alignment[steps[0]].keys())
             for layer_idx in layer_idxs:
-                vals = [trainer.tracker.epoch_W_beta_alignment[e][layer_idx] for e in epochs]
+                vals = [trainer.tracker.step_W_beta_alignment[e][layer_idx] for e in steps]
                 label = "layer:{}".format(layer_idx)
                 for param in self.varying_params:
                     label = "{} {}={}".format(label, param, context[param])
-                plt.plot(epochs, vals, label=label)
-        plt.xlabel("epochs")
+                plt.plot(steps, vals, label=label)
+        plt.xlabel("steps")
         plt.ylabel("$sim(W, \\beta^*)$")
         plt.legend()
         plt.grid(True)
