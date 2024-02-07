@@ -9,10 +9,13 @@ plt.rcParams['axes.labelsize'] = 16
 class Tracker:
     def __init__(self, context):
         self.context = context
+        self.step_weight_stable_rank = OrderedDict()
         self.step_weight_esd = OrderedDict()
         self.step_weight_vals = OrderedDict()
         self.step_activation_esd = OrderedDict()
         self.step_activation_vals = OrderedDict()
+        self.step_activation_stable_rank = OrderedDict()
+        self.step_activation_effective_ranks = OrderedDict()
         self.step_KTA = OrderedDict()
         self.step_W_beta_alignment = OrderedDict()
         self.step_weighted_U_pc_align_stddev = OrderedDict()
@@ -79,6 +82,7 @@ class Tracker:
             if step not in self.step_weight_vals:
                 self.step_weight_vals[step] = OrderedDict()
             self.step_weight_vals[step][idx] = W
+
             S_W = torch.linalg.svdvals(W)
             self.plot_svd(S_M=S_W, name=name)
             WtW = W.t() @ W
@@ -87,6 +91,63 @@ class Tracker:
             if step not in self.step_weight_esd:
                 self.step_weight_esd[step] = OrderedDict()
             self.step_weight_esd[step][idx] = S_WtW
+
+            W_stable_rank = self.get_stable_rank(M=W)
+            if step not in self.step_weight_stable_rank:
+                self.step_weight_stable_rank[step] = OrderedDict()
+            self.step_weight_stable_rank[step][idx] = W_stable_rank
+
+    @torch.no_grad()
+    def get_stable_rank(self, M):
+        norm_frob = torch.linalg.norm(M, ord="fro")
+        norm_2 = torch.linalg.norm(M, ord=2)
+        stable_rank = (norm_frob/norm_2)**2
+        return stable_rank
+
+    @torch.no_grad()
+    def get_effective_ranks(self, M):
+        S = torch.linalg.svdvals(M)
+        total_svs = S.shape[0]
+        # effective rank variant 1
+        er_r = []
+        for k in range(total_svs-1):
+            if S[k+1] <= 0:
+                val = 0
+            else:
+                temp_sum = 0
+                for i in range(k+1, total_svs-1):
+                    temp_sum += S[i]
+                val = temp_sum/S[k+1]
+            er_r.append(val)
+        # effective rank variant 2
+        er_R = []
+        for k in range(total_svs-1):
+            temp_sum1 = 0
+            temp_sum2 = 0
+            for i in range(k+1, total_svs-1):
+                temp_sum1 += S[i]
+                temp_sum2 += (S[i])**2
+            if temp_sum2 > 0:
+                val = temp_sum1**2/temp_sum2
+            else: val = 0
+            er_R.append(val)
+        return er_r, er_R
+
+    @torch.no_grad()
+    def plot_step_weight_stable_rank(self):
+        steps = list(self.step_weight_stable_rank.keys())
+        layer_idxs = list(self.step_weight_stable_rank[steps[0]].keys())
+        for layer_idx in layer_idxs:
+            vals = [self.step_weight_stable_rank[e][layer_idx] for e in steps]
+            plt.plot(steps, vals, label="layer:{}".format(layer_idx))
+            plt.xlabel("steps")
+            plt.ylabel("stable rank")
+            plt.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            name="{}W{}_stable_rank.jpg".format(self.context["vis_dir"], layer_idx)
+            plt.savefig(name)
+            plt.clf()
 
     @torch.no_grad()
     def plot_tensor(self, M, name):
@@ -185,7 +246,55 @@ class Tracker:
                 self.step_KTA[step] = OrderedDict()
             self.step_KTA[step][layer_idx] = KTA
             logger.info("KTA for step:{} layer: {} = {}".format(step, layer_idx, KTA))
+            # stable rank
+            Z_stable_rank = self.get_stable_rank(M=Z)
+            if step not in self.step_activation_stable_rank:
+                self.step_activation_stable_rank[step] = OrderedDict()
+            self.step_activation_stable_rank[step][layer_idx] = Z_stable_rank
+            # effective ranks
+            K = Z @ Z.t()
+            Z_effective_ranks = self.get_effective_ranks(M=K)
+            if step not in self.step_activation_effective_ranks:
+                self.step_activation_effective_ranks[step] = OrderedDict()
+            self.step_activation_effective_ranks[step][layer_idx] = {
+                "variant1": Z_effective_ranks[0],
+                "variant2": Z_effective_ranks[1]
+            }
 
+    @torch.no_grad()
+    def plot_step_activation_stable_rank(self):
+        steps = list(self.step_activation_stable_rank.keys())
+        layer_idxs = list(self.step_activation_stable_rank[steps[0]].keys())
+        for layer_idx in layer_idxs:
+            vals = [self.step_activation_stable_rank[e][layer_idx] for e in steps]
+            plt.plot(steps, vals, label="layer:{}".format(layer_idx))
+            plt.xlabel("steps")
+            plt.ylabel("stable rank")
+            plt.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            name="{}Z{}_stable_rank.jpg".format(self.context["vis_dir"], layer_idx)
+            plt.savefig(name)
+            plt.clf()
+
+    @torch.no_grad()
+    def plot_step_activation_effective_ranks(self):
+        steps = list(self.step_activation_effective_ranks.keys())
+        layer_idxs = list(self.step_activation_effective_ranks[steps[0]].keys())
+        for layer_idx in layer_idxs:
+            for step in steps:
+                variant1_vals = self.step_activation_effective_ranks[step][layer_idx]["variant1"]
+                variant2_vals = self.step_activation_effective_ranks[step][layer_idx]["variant2"]
+                plt.plot(variant1_vals, label="layer:{},step:{},r".format(layer_idx, step))
+                plt.plot(variant2_vals, label="layer:{},step:{},R".format(layer_idx, step))
+            plt.xlabel("singular value idx")
+            plt.ylabel("effective ranks")
+            plt.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            name="{}Z{}_effective_ranks.jpg".format(self.context["vis_dir"], layer_idx)
+            plt.savefig(name)
+            plt.clf()
 
     @torch.no_grad()
     def compute_KTA(self, Z, y_t):
@@ -343,37 +452,6 @@ class Tracker:
         name="{}W_signG_pc_sim_step{}.jpg".format(self.context["vis_dir"], step)
         self.plot_pc_sims(U_W=U_W, U_G=U_signG, Vh_W=Vh_W, Vh_G=Vh_signG, name=name)
 
-        # U_sim_log_vals = torch.log10(U_sim[:, 0])
-        # Vh_sim_log_vals = torch.log10(Vh_sim[:, 0])
-        # self.step_U_pc_align_stddev[step] = torch.std(U_sim_log_vals)
-        # self.step_Vh_pc_align_stddev[step] = torch.std(Vh_sim_log_vals)
-
-        # plt.plot(U_sim_log_vals, label="U({})_sim".format(0))
-        # plt.plot(Vh_sim_log_vals, label="Vh({})_sim".format(0), linestyle='dashed')
-        # plt.xlabel("i")
-        # plt.ylabel("pc sim")
-        # plt.legend()
-        # plt.grid()
-        # plt.tight_layout()
-        # name="{}W_G_step{}".format(self.context["vis_dir"], step)
-        # plt.savefig("{}_pc_sim.jpg".format(name))
-        # plt.clf()
-
-
-        # U_sim_weighted_log_vals = torch.log10(U_sim[:, 0] * S_W * S_G[0])
-        # Vh_sim_weighted_log_vals = torch.log10(Vh_sim[:, 0] * S_W * S_G[0])
-        # self.step_weighted_U_pc_align_stddev[step] = torch.std(U_sim_weighted_log_vals)
-        # self.step_weighted_Vh_pc_align_stddev[step] = torch.std(Vh_sim_weighted_log_vals)
-        # plt.plot( U_sim_weighted_log_vals, label="U({})_sim".format(0))
-        # plt.plot(Vh_sim_weighted_log_vals, label="Vh({})_sim".format(0), linestyle='dashed')
-        # plt.xlabel("i")
-        # plt.ylabel("pc sim")
-        # plt.legend()
-        # plt.grid()
-        # plt.tight_layout()
-        # name="{}W_G_step{}".format(self.context["vis_dir"], step)
-        # plt.savefig("{}_pc_weighted_sim.jpg".format(name))
-        # plt.clf()
 
     @torch.no_grad()
     def plot_pc_sims(self, U_W, U_G, Vh_W, Vh_G, name):
@@ -404,32 +482,4 @@ class Tracker:
 
         plt.tight_layout()
         plt.savefig(name)
-        plt.clf()
-
-    @torch.no_grad()
-    def plot_step_weighted_pc_align_stddev(self):
-        x = list(self.step_weighted_U_pc_align_stddev.keys())
-        plt.plot(x, list(self.step_weighted_U_pc_align_stddev.values()), label="U")
-        plt.plot(x, list(self.step_weighted_U_pc_align_stddev.values()), label="Vh", linestyle="dashed")
-        plt.xlabel("step")
-        plt.ylabel("stddev")
-        plt.legend()
-        plt.grid()
-        plt.tight_layout()
-        name="{}W_G".format(self.context["vis_dir"])
-        plt.savefig("{}_pc_weighted_sim_stddev.jpg".format(name))
-        plt.clf()
-
-    @torch.no_grad()
-    def plot_step_pc_align_stddev(self):
-        x = list(self.step_U_pc_align_stddev.keys())
-        plt.plot(x, list(self.step_U_pc_align_stddev.values()), label="U")
-        plt.plot(x, list(self.step_U_pc_align_stddev.values()), label="Vh", linestyle="dashed")
-        plt.xlabel("step")
-        plt.ylabel("stddev")
-        plt.legend()
-        plt.grid()
-        plt.tight_layout()
-        name="{}W_G".format(self.context["vis_dir"])
-        plt.savefig("{}_pc_sim_stddev.jpg".format(name))
         plt.clf()

@@ -67,15 +67,15 @@ if __name__ == "__main__":
         "d": 1000,
         "label_noise_std": 0.3,
         "tau": 0.2,
-        "num_epochs": 2000,
+        "num_epochs": 1,
         "optimizer": "sgd",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 10,
+        "lr": 0.1,
         "reg_lamba": 0.01,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
-        "probe_freq_steps": 500
+        "probe_freq_steps": 1
     }
     context = setup_runtime_context(context=exp_context)
     logging.basicConfig(

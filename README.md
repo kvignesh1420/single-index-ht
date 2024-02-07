@@ -27,8 +27,10 @@ exp_context = {
         "optimizer": "sgd",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 2000,
-        "probe_freq": 1
+        "lr": 0.1,
+        # NOTE: The probing now occurs based on number of steps.
+        # set appropriate values based on n, batch_size and num_epochs.
+        "probe_freq_steps": 1
     }
 ```
 

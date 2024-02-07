@@ -92,11 +92,9 @@ class Trainer:
                     # The train loss is computed by performing ridge regression on the
                     # probe loader.
                     # self.tracker.store_training_loss(loss=epoch_loss, step=step)
-                    self.tracker.plot_step_weighted_pc_align_stddev()
-                    self.tracker.plot_step_pc_align_stddev()
                     self.tracker.probe_weights(teacher=teacher, student=student, step=step)
-                    self.tracker.probe_features(student=student, probe_loader=probe_loader, step=step)
                     self.tracker.plot_W_and_grad_alignment(X=X, y_t=y_t, student=student, step=step)
+                    self.tracker.probe_features(student=student, probe_loader=probe_loader, step=step)
                     self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, step=step)
             epoch_loss /= self.context["n"]
             # logger.info("Epoch: {} training loss: {}".format(epoch, epoch_loss))
@@ -105,8 +103,11 @@ class Trainer:
 
     def plot_results(self):
         self.tracker.plot_losses()
+        self.tracker.plot_step_weight_stable_rank()
         self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_weight_esd()
+        self.tracker.plot_step_activation_stable_rank()
+        self.tracker.plot_step_activation_effective_ranks()
         self.tracker.plot_initial_final_activation_vals()
         self.tracker.plot_initial_final_activation_esd()
         self.tracker.plot_step_KTA()
