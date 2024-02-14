@@ -82,6 +82,9 @@ class Trainer:
             for batch_idx, (X, y_t) in enumerate(train_loader):
                 step = (epoch-1)*num_batches + batch_idx + 1
                 X, y_t = X.to(self.context["device"]) , y_t.to(self.context["device"])
+                if self.context["enable_weight_normalization"]:
+                    student.hidden_layer.weight.data /= torch.norm(student.hidden_layer.weight.data, p='fro')
+                    student.hidden_layer.weight.data *= torch.sqrt(torch.tensor(self.context["h"]*self.context["d"]))
                 student.zero_grad()
                 pred = student(X)
                 loss = loss_fn(pred, y_t)
@@ -105,7 +108,8 @@ class Trainer:
         self.tracker.plot_step_weight_stable_rank()
         self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_weight_esd()
-        self.tracker.plot_initial_final_W_and_update_alignment()
+        self.tracker.plot_first_step_W1_M_alignment()
+        self.tracker.plot_all_steps_W_M_alignment()
         self.tracker.plot_step_activation_stable_rank()
         self.tracker.plot_step_activation_effective_ranks()
         self.tracker.plot_initial_final_activation_vals()

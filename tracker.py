@@ -1,6 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
 from collections import OrderedDict
+from tqdm import tqdm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -406,10 +407,59 @@ class Tracker:
         plt.clf()
 
     @torch.no_grad()
-    def plot_initial_final_W_and_update_alignment(self):
+    def compute_resolvent(self, z, Q):
+        dim0, dim1 = Q.shape
+        assert dim0 == dim1
+        return torch.linalg.pinv(z*torch.eye(dim0) - Q)
+
+    @torch.no_grad()
+    def compute_stieltjes_transform(self, z, Q):
+        resolvent = self.compute_resolvent(z=z, Q=Q)
+        dim0 = Q.shape[0]
+        return torch.trace(resolvent)/dim0
+
+    @torch.no_grad()
+    def compute_block_stieltjes_transform(self, z1, z2, W1):
+        val1 = z2 * self.compute_stieltjes_transform(z=z1*z2, Q=(W1 @ W1.t()))
+        val2 = z1 * self.compute_stieltjes_transform(z=z1*z2, Q=(W1.t() @ W1))
+        return [val1, val2]
+
+    @torch.no_grad()
+    def compute_nu_A_B(self, s_hat, s, W1, bst):
+        h, d = W1.shape
+        c = h/d
+        sigma = 1
+        nu = s_hat - c * (sigma**2) * d * bst[0]
+        A = nu * ( nu - (sigma**2)*d*(1 - c)/s_hat ) - s**2
+        B = 2 * c * (sigma**2)*d * ( nu - (sigma**2)*d*(1 - c)/(2*s_hat) )
+        logger.info("nu: {} A: {} B: {}".format(nu, A, B))
+        return nu, A, B
+
+    @torch.no_grad()
+    def compute_expected_W1_M_alignment_left(self, s_hat, s, W1, bst):
+        h, d = W1.shape
+        c = h/d
+        sigma = 1
+        nu, A, B = self.compute_nu_A_B(s_hat=s_hat, s=s, W1=W1, bst=bst)
+        num = nu*B - c * (sigma**2)*d*A
+        den = A**2
+        return num/den
+
+    @torch.no_grad()
+    def compute_expected_W1_M_alignment_right(self, s_hat, s, W1, bst):
+        h, d = W1.shape
+        c = h/d
+        sigma = 1
+        nu, A, B = self.compute_nu_A_B(s_hat=s_hat, s=s, W1=W1, bst=bst)
+        num = ( nu - (sigma**2)*d*(1-c)/s_hat )*B - c*(sigma**2)*d*A
+        den = A**2
+        return num/den
+
+    @torch.no_grad()
+    def plot_first_step_W1_M_alignment(self):
         steps = list(self.step_weight_vals.keys())
         initial_step = steps[0]
-        final_step = steps[-1]
+        final_step = steps[1]
         for idx in self.step_weight_vals[0]:
             initial_W = self.step_weight_vals[initial_step][idx]
             final_W = self.step_weight_vals[final_step][idx]
@@ -419,42 +469,147 @@ class Tracker:
 
             M = final_W - initial_W
             U_M, S_M, Vh_M = torch.linalg.svd(M, full_matrices=False)
+            name="{}M_layer{}".format(self.context["vis_dir"], idx)
+            self.plot_svd(S_M=S_M, name=name)
 
-            print("initial_W shape: {} final_W: {} update shape: {}".format(
+            s_hat = S_finW[0]
+            logger.info("s_hat: {}".format(s_hat))
+            logger.info("computing W1 M pc alignment")
+            left_alignments = []
+            right_alignments = []
+            bst = self.compute_block_stieltjes_transform(z1=s_hat, z2=s_hat, W1=final_W)
+            for i in tqdm(range(S_M.shape[0])):
+                s = S_M[i]
+                # logger.info("s: {}".format(s))
+                left_alignment = self.compute_expected_W1_M_alignment_left(s_hat=s_hat, s=s, W1=final_W, bst=bst)
+                left_alignments.append(left_alignment)
+                right_alignment = self.compute_expected_W1_M_alignment_right(s_hat=s_hat, s=s, W1=final_W, bst=bst)
+                right_alignments.append(right_alignment)
+            # logger.info("expected_W1_M_alignment_left: {} expected_W1_M_alignment_right: {}".format(
+            #     left_alignment, right_alignment
+            # ))
+            left_alignments = np.array(left_alignments)
+            left_alignments /= np.sum(left_alignments)
+            left_alignments = np.log10(left_alignments)
+
+            right_alignments = np.array(right_alignments)
+            right_alignments /= np.sum(right_alignments)
+            right_alignments = np.log10(right_alignments)
+
+            logger.info("initial_W shape: {} final_W: {} update shape: {}".format(
                 initial_W.shape, final_W.shape, M.shape))
 
             # since we consider the update matrix to contain the signal:
             # we measure the singular vector alignments of M and final_W
             name="{}W{}_final_M_pc_sim.jpg".format(self.context["vis_dir"], idx)
-            self.plot_pc_sims(U_W=U_finW, U_G=U_M, Vh_W=Vh_finW, Vh_G=Vh_M, name=name)
+            self.plot_pc_sims(U_W=U_finW, U_G=U_M, Vh_W=Vh_finW, Vh_G=Vh_M,
+                              la=left_alignments, ra=right_alignments, name=name)
 
     @torch.no_grad()
-    def plot_pc_sims(self, U_W, U_G, Vh_W, Vh_G, name):
+    def plot_pc_sims(self, U_W, U_G, Vh_W, Vh_G, la, ra, name):
         U_sim = torch.abs( (U_W.t() @ U_G) )
         Vh_sim = torch.abs( (Vh_W @ Vh_G.t()) )
 
-        U_sim = U_sim[:, 0]
-        Vh_sim = Vh_sim[:, 0]
+        U_sim = U_sim[0, :]
+        U_sim /= torch.sum(U_sim)
+        U_sim = torch.log10(U_sim)
+        Vh_sim = Vh_sim[0, :]
+        Vh_sim /= torch.sum(Vh_sim)
+        Vh_sim = torch.log10(Vh_sim)
 
         fig, axs = plt.subplots(1, 2)
-        axs[0].plot(U_sim)
+        axs[0].plot(U_sim, label="exp")
+        axs[0].plot(la, label="theory")
         U_sim_max_index = np.argmax(U_sim)
         U_sim_max_value = U_sim[U_sim_max_index]
-        axs[0].axvline(x=U_sim_max_index, color='r', linestyle='--', label=f'Max Value ({U_sim_max_value:.2f}), i={U_sim_max_index}', linewidth=2)
+        la_max_index = np.argmax(la)
+        la_max_value = la[la_max_index]
+        axs[0].axvline(x=U_sim_max_index, color='r', linestyle='--', label=f'exp max ({U_sim_max_value:.2f}), i={U_sim_max_index}', linewidth=1)
+        axs[0].axvline(x=la_max_index, color='g', linestyle='--', label=f'theory max ({la_max_value:.2f}), i={la_max_index}', linewidth=1)
         axs[0].set_xlabel('i')
         axs[0].set_ylabel('alignment')
-        axs[0].set_title('Right PC')
+        # axs[0].set_title('Left PC')
         axs[0].legend()
 
-        axs[1].plot(Vh_sim)
+        axs[1].plot(Vh_sim, label="exp")
+        axs[1].plot(ra, label="theory")
         Vh_sim_max_index = np.argmax(Vh_sim)
         Vh_sim_max_value = Vh_sim[Vh_sim_max_index]
-        axs[1].axvline(x=Vh_sim_max_index, color='r', linestyle='--', label=f'Max Value ({Vh_sim_max_value:.2f}), i={Vh_sim_max_index}', linewidth=2)
+        ra_max_index = np.argmax(ra)
+        ra_max_value = ra[ra_max_index]
+        axs[1].axvline(x=Vh_sim_max_index, color='r', linestyle='--', label=f'exp max ({Vh_sim_max_value:.2f}), i={Vh_sim_max_index}', linewidth=1)
+        axs[1].axvline(x=ra_max_index, color='g', linestyle='--', label=f'theory max ({ra_max_value:.2f}), i={ra_max_index}', linewidth=1)
         axs[1].set_xlabel('i')
         axs[1].set_ylabel('alignment')
-        axs[1].set_title('Left PC')
+        # axs[1].set_title('Right PC')
         axs[1].legend()
 
         plt.tight_layout()
         plt.savefig(name)
         plt.clf()
+
+    @torch.no_grad()
+    def plot_all_steps_W_M_alignment(self):
+        steps = list(self.step_weight_vals.keys())
+        for step_idx in range(len(steps)-1):
+            initial_step = steps[step_idx]
+            final_step = steps[step_idx+1]
+            for layer_idx in self.step_weight_vals[0]:
+                # skip second layer as of now.
+                if layer_idx == 1: continue
+                initial_W = self.step_weight_vals[initial_step][layer_idx]
+                final_W = self.step_weight_vals[final_step][layer_idx]
+
+                U_initW, S_initW, Vh_initW = torch.linalg.svd(initial_W, full_matrices=False)
+                U_finW, S_finW, Vh_finW = torch.linalg.svd(final_W, full_matrices=False)
+
+                M = final_W - initial_W
+                U_M, S_M, Vh_M = torch.linalg.svd(M, full_matrices=False)
+                name="{}M_layer{}_step{}".format(self.context["vis_dir"], layer_idx, step_idx+1)
+                self.plot_svd(S_M=S_M, name=name)
+
+                # compute sim between initW and M
+                name="{}W{}_step{}_M_step{}".format(self.context["vis_dir"], layer_idx, step_idx, step_idx)
+                self.plot_3d_sv_inner_product_squares(U_W=U_initW, U_M=U_M, Vh_W=Vh_initW, Vh_M=Vh_M, name=name)
+
+                # compute sim between finW and M
+                name="{}W{}_step{}_M_step{}".format(self.context["vis_dir"], layer_idx, step_idx+1, step_idx)
+                self.plot_3d_sv_inner_product_squares(U_W=U_finW, U_M=U_M, Vh_W=Vh_finW, Vh_M=Vh_M, name=name)
+
+    @torch.no_grad()
+    def plot_3d_sv_inner_product_squares(self, U_W, U_M, Vh_W, Vh_M, name):
+        U_sim = torch.square( (U_W.t() @ U_M) ).detach().cpu().numpy()
+        Vh_sim = torch.square( (Vh_W @ Vh_M.t()) ).detach().cpu().numpy()
+
+        x_left, y_left = np.meshgrid(range(U_sim.shape[0]), range(U_sim.shape[1]))
+        x_left = x_left.flatten()
+        y_left = y_left.flatten()
+        z_left = U_sim.flatten()
+
+        x_right, y_right = np.meshgrid(range(Vh_sim.shape[0]), range(Vh_sim.shape[1]))
+        x_right = x_right.flatten()
+        y_right = y_right.flatten()
+        z_right = Vh_sim.flatten()
+
+        # Plot 3D figure for inner products of left singular vectors
+        fig = plt.figure(figsize=(15, 6))
+        ax1 = fig.add_subplot(1, 2, 1, projection='3d')
+        ax1.scatter(x_left, y_left, z_left, c=z_left, cmap='viridis_r')
+        # ax1.set_title('Inner Products of Left Singular Vectors')
+        ax1.set_xlabel('U_W', labelpad=10)
+        ax1.set_ylabel('U_M', labelpad=10)
+        ax1.set_zlabel('overlap', labelpad=10)
+        # ax1.view_init(30, 60)
+
+        # Plot 3D figure for inner products of right singular vectors
+        ax2 = fig.add_subplot(1, 2, 2, projection='3d')
+        ax2.scatter(x_right, y_right, z_right, c=z_right, cmap='viridis_r')
+        # ax2.set_title('Inner Products of Right Singular Vectors')
+        ax2.set_xlabel('Vh_W', labelpad=10)
+        ax2.set_ylabel('Vh_M', labelpad=10)
+        ax2.set_zlabel('overlap', labelpad=10)
+        # ax2.view_init(30, 60)
+        plt.tight_layout()
+        plt.savefig(name)
+        plt.clf()
+        plt.close()
