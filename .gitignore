@@ -161,3 +161,6 @@ cython_debug/
 
 # outputs
 out/
+data/
+student_models/
+teacher_models/
