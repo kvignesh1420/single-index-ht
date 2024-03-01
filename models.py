@@ -18,7 +18,8 @@ class Teacher(torch.nn.Module):
         d = self.context["d"]
         beta = torch.randn(size=[d])
         beta = beta/torch.norm(beta, p=2)
-        self.beta = beta.unsqueeze(1)
+        beta = beta.unsqueeze(1)
+        self.beta = torch.nn.Parameter(beta)
 
     def forward(self, X):
         Z = X @ self.beta
