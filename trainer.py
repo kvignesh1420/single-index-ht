@@ -4,7 +4,12 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-plt.rcParams['axes.labelsize'] = 16
+plt.rcParams.update({
+    'xtick.labelsize': 20,
+    'ytick.labelsize': 20,
+    'axes.labelsize': 20,
+    'legend.fontsize': 14
+})
 from tracker import Tracker
 
 class Trainer:
@@ -108,7 +113,8 @@ class Trainer:
         self.tracker.plot_step_weight_stable_rank()
         self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_weight_esd()
-        self.tracker.plot_first_step_W1_M_alignment()
+        self.tracker.plot_initial_final_weight_nolog_esd()
+        # self.tracker.plot_first_step_W1_M_alignment()
         self.tracker.plot_all_steps_W_M_alignment()
         self.tracker.plot_step_activation_stable_rank()
         self.tracker.plot_step_activation_effective_ranks()

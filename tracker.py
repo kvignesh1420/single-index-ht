@@ -5,7 +5,12 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-plt.rcParams['axes.labelsize'] = 16
+plt.rcParams.update({
+    'xtick.labelsize': 20,
+    'ytick.labelsize': 20,
+    'axes.labelsize': 20,
+    'legend.fontsize': 14
+})
 
 class Tracker:
     def __init__(self, context):
@@ -36,6 +41,7 @@ class Tracker:
         losses = list(self.training_loss.values())
         plt.plot(steps, losses)
         plt.grid(True)
+        plt.tight_layout()
         plt.savefig("{}training_loss.jpg".format(self.context["vis_dir"]))
         plt.clf()
 
@@ -49,6 +55,7 @@ class Tracker:
         losses = list(self.val_loss.values())
         plt.plot(steps, losses)
         plt.grid(True)
+        plt.tight_layout()
         plt.savefig("{}val_loss.jpg".format(self.context["vis_dir"]))
         plt.clf()
 
@@ -64,6 +71,7 @@ class Tracker:
         plt.ylabel("loss")
         plt.grid(True)
         plt.legend()
+        plt.tight_layout()
         plt.savefig("{}losses.jpg".format(self.context["vis_dir"]))
         plt.clf()
 
@@ -156,6 +164,7 @@ class Tracker:
         plt.hist(M, bins=100, density=True)
         plt.xlabel("val")
         plt.ylabel("density(val)")
+        plt.tight_layout()
         plt.savefig("{}_vals.jpg".format(name))
         plt.clf()
 
@@ -174,6 +183,7 @@ class Tracker:
             plt.xlabel("vals")
             plt.ylabel("density(vals)")
             plt.legend()
+            plt.tight_layout()
             name="{}W{}".format(self.context["vis_dir"], idx)
             plt.savefig("{}_initial_final_vals.jpg".format(name))
             plt.clf()
@@ -183,15 +193,17 @@ class Tracker:
        plt.bar(x=list(range(S_M.shape[0])), height=S_M.cpu().numpy())
        plt.xlabel("$i$")
        plt.ylabel("$\lambda_i$")
+       plt.tight_layout()
        plt.savefig("{}_sv.jpg".format(name))
        plt.clf()
 
     @torch.no_grad()
     def plot_esd(self, S_MtM, name):
        vals = np.log10(S_MtM.cpu().numpy())
-       plt.hist(vals, bins=100, log=True, density=True)
+       plt.hist(vals, bins=100, log=True, density=True, color="blue", alpha=0.5, edgecolor='blue')
        plt.xlabel("$\log_{10}(\lambda_i)$")
-       plt.ylabel(" ESD $\log_{10}$ scale")
+       plt.ylabel("$\log_{10}(ESD)$")
+       plt.tight_layout()
        plt.savefig("{}_esd.jpg".format(name))
        plt.clf()
 
@@ -210,8 +222,29 @@ class Tracker:
             plt.xlabel("$\log_{10}(\lambda_i)$")
             plt.ylabel("$\log_{10}(ESD)$")
             plt.legend()
+            plt.tight_layout()
             name="{}W{}".format(self.context["vis_dir"], idx)
             plt.savefig("{}_initial_final_esd.jpg".format(name))
+            plt.clf()
+
+    @torch.no_grad()
+    def plot_initial_final_weight_nolog_esd(self):
+        steps = list(self.step_weight_esd.keys())
+        initial_step = steps[0]
+        final_step = steps[-1]
+        for idx in self.step_weight_esd[0]:
+            initial_S_WtW = self.step_weight_esd[initial_step][idx]
+            final_S_WtW = self.step_weight_esd[final_step][idx]
+            initial_vals = initial_S_WtW.cpu().numpy()
+            final_vals = final_S_WtW.cpu().numpy()
+            plt.hist(initial_vals, bins=100, color="red", alpha=0.5, edgecolor='red', label="initial")
+            plt.hist(final_vals, bins=100, color="blue", alpha=0.5, edgecolor='blue', label="step{}".format(final_step))
+            # plt.xlabel("$\lambda_i$")
+            # plt.ylabel("$count$")
+            plt.legend()
+            plt.tight_layout()
+            name="{}W{}".format(self.context["vis_dir"], idx)
+            plt.savefig("{}_initial_final_nolog_esd.jpg".format(name))
             plt.clf()
 
     @torch.no_grad()
@@ -364,6 +397,7 @@ class Tracker:
             plt.xlabel("vals")
             plt.ylabel("density(vals)")
             plt.legend()
+            plt.tight_layout()
             name="{}Z{}".format(self.context["vis_dir"], idx)
             plt.savefig("{}_initial_final_vals.jpg".format(name))
             plt.clf()
@@ -383,6 +417,7 @@ class Tracker:
             plt.xlabel("$\log_{10}(\lambda_i)$")
             plt.ylabel("$\log_{10}(ESD)$")
             plt.legend()
+            plt.tight_layout()
             name="{}Z{}".format(self.context["vis_dir"], idx)
             plt.savefig("{}_initial_final_esd.jpg".format(name))
             plt.clf()
@@ -507,8 +542,9 @@ class Tracker:
 
     @torch.no_grad()
     def plot_pc_sims(self, U_W, U_G, Vh_W, Vh_G, la, ra, name):
-        U_sim = torch.abs( (U_W.t() @ U_G) )
-        Vh_sim = torch.abs( (Vh_W @ Vh_G.t()) )
+        # TODO: improve plots
+        U_sim = torch.square( (U_W.t() @ U_G) )
+        Vh_sim = torch.square( (Vh_W @ Vh_G.t()) )
 
         U_sim = U_sim[0, :]
         U_sim /= torch.sum(U_sim)
@@ -517,7 +553,7 @@ class Tracker:
         Vh_sim /= torch.sum(Vh_sim)
         Vh_sim = torch.log10(Vh_sim)
 
-        fig, axs = plt.subplots(1, 2)
+        fig, axs = plt.subplots(1, 2, figsize=(16, 6))
         axs[0].plot(U_sim, label="exp")
         axs[0].plot(la, label="theory")
         U_sim_max_index = np.argmax(U_sim)
@@ -592,24 +628,31 @@ class Tracker:
         z_right = Vh_sim.flatten()
 
         # Plot 3D figure for inner products of left singular vectors
-        fig = plt.figure(figsize=(15, 6))
-        ax1 = fig.add_subplot(1, 2, 1, projection='3d')
-        ax1.scatter(x_left, y_left, z_left, c=z_left, cmap='viridis_r')
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_left, y_left, z_left, c=z_left, cmap='viridis_r')
         # ax1.set_title('Inner Products of Left Singular Vectors')
-        ax1.set_xlabel('U_W', labelpad=10)
-        ax1.set_ylabel('U_M', labelpad=10)
-        ax1.set_zlabel('overlap', labelpad=10)
+        ax.set_xlabel('U_W', labelpad=15)
+        ax.set_ylabel('U_M', labelpad=25)
+        ax.set_zlabel('overlap', labelpad=25)
+        ax.zaxis.set_tick_params(pad=15)
+        plt.tight_layout()
+        plt.savefig("{}_left.jpg".format(name))
+        plt.clf()
+        plt.close()
         # ax1.view_init(30, 60)
 
         # Plot 3D figure for inner products of right singular vectors
-        ax2 = fig.add_subplot(1, 2, 2, projection='3d')
-        ax2.scatter(x_right, y_right, z_right, c=z_right, cmap='viridis_r')
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_right, y_right, z_right, c=z_right, cmap='viridis_r')
         # ax2.set_title('Inner Products of Right Singular Vectors')
-        ax2.set_xlabel('Vh_W', labelpad=10)
-        ax2.set_ylabel('Vh_M', labelpad=10)
-        ax2.set_zlabel('overlap', labelpad=10)
+        ax.set_xlabel('V_W', labelpad=15)
+        ax.set_ylabel('V_M', labelpad=25)
+        ax.set_zlabel('overlap', labelpad=25)
+        ax.zaxis.set_tick_params(pad=15)
         # ax2.view_init(30, 60)
         plt.tight_layout()
-        plt.savefig(name)
+        plt.savefig("{}_right.jpg".format(name))
         plt.clf()
         plt.close()
