@@ -39,7 +39,7 @@ class Tracker:
     def plot_training_loss(self):
         steps = list(self.training_loss.keys())
         losses = list(self.training_loss.values())
-        plt.plot(steps, losses)
+        plt.plot(steps, losses, marker='o')
         plt.grid(True)
         plt.tight_layout()
         plt.savefig("{}training_loss.jpg".format(self.context["vis_dir"]))
@@ -53,7 +53,7 @@ class Tracker:
     def plot_val_loss(self):
         steps = list(self.val_loss.keys())
         losses = list(self.val_loss.values())
-        plt.plot(steps, losses)
+        plt.plot(steps, losses, marker='o')
         plt.grid(True)
         plt.tight_layout()
         plt.savefig("{}val_loss.jpg".format(self.context["vis_dir"]))
@@ -65,9 +65,9 @@ class Tracker:
         steps = list(self.val_loss.keys())
         training_losses = list(self.training_loss.values())
         val_losses = list(self.val_loss.values())
-        plt.plot(steps, training_losses, label="train")
-        plt.plot(steps, val_losses, label="test", linestyle='dashed')
-        plt.xlabel("step")
+        plt.plot(steps, training_losses, marker='o', label="train")
+        plt.plot(steps, val_losses, marker='x', label="test", linestyle='dashed')
+        plt.xlabel("steps")
         plt.ylabel("loss")
         plt.grid(True)
         plt.legend()
@@ -148,7 +148,7 @@ class Tracker:
         layer_idxs = list(self.step_weight_stable_rank[steps[0]].keys())
         for layer_idx in layer_idxs:
             vals = [self.step_weight_stable_rank[e][layer_idx] for e in steps]
-            plt.plot(steps, vals, label="layer:{}".format(layer_idx))
+            plt.plot(steps, vals, marker='o', label="layer:{}".format(layer_idx))
             plt.xlabel("steps")
             plt.ylabel("stable rank")
             plt.legend()
@@ -237,10 +237,10 @@ class Tracker:
             final_S_WtW = self.step_weight_esd[final_step][idx]
             initial_vals = initial_S_WtW.cpu().numpy()
             final_vals = final_S_WtW.cpu().numpy()
-            plt.hist(initial_vals, bins=100, color="red", alpha=0.5, edgecolor='red', label="initial")
-            plt.hist(final_vals, bins=100, color="blue", alpha=0.5, edgecolor='blue', label="step{}".format(final_step))
-            # plt.xlabel("$\lambda_i$")
-            # plt.ylabel("$count$")
+            plt.hist(initial_vals, bins=100, density=True, color="red", alpha=0.5, edgecolor='red', label="initial")
+            plt.hist(final_vals, bins=100, density=True, color="blue", alpha=0.5, edgecolor='blue', label="step{}".format(final_step))
+            plt.xlabel("$\lambda_i$")
+            plt.ylabel("$ESD$")
             plt.legend()
             plt.tight_layout()
             name="{}W{}".format(self.context["vis_dir"], idx)
@@ -301,7 +301,7 @@ class Tracker:
         layer_idxs = list(self.step_activation_stable_rank[steps[0]].keys())
         for layer_idx in layer_idxs:
             vals = [self.step_activation_stable_rank[e][layer_idx] for e in steps]
-            plt.plot(steps, vals, label="layer:{}".format(layer_idx))
+            plt.plot(steps, vals, marker='o', label="layer:{}".format(layer_idx))
             plt.xlabel("steps")
             plt.ylabel("stable rank")
             plt.legend()
@@ -319,8 +319,8 @@ class Tracker:
             for step in steps:
                 variant1_vals = self.step_activation_effective_ranks[step][layer_idx]["variant1"]
                 variant2_vals = self.step_activation_effective_ranks[step][layer_idx]["variant2"]
-                plt.plot(variant1_vals, label="layer:{},step:{},r".format(layer_idx, step))
-                plt.plot(variant2_vals, label="layer:{},step:{},R".format(layer_idx, step))
+                plt.plot(variant1_vals, marker='o', label="layer:{},step:{},r".format(layer_idx, step))
+                plt.plot(variant2_vals, marker='x', label="layer:{},step:{},R".format(layer_idx, step))
             plt.xlabel("singular value idx")
             plt.ylabel("effective ranks")
             plt.legend()
@@ -346,7 +346,7 @@ class Tracker:
         layer_idxs = list(self.step_KTA[steps[0]].keys())
         for layer_idx in layer_idxs:
             vals = [self.step_KTA[e][layer_idx] for e in steps]
-            plt.plot(steps, vals, label="layer:{}".format(layer_idx))
+            plt.plot(steps, vals, marker='o', label="layer:{}".format(layer_idx))
         plt.xlabel("steps")
         plt.ylabel("KTA")
         plt.legend()
@@ -372,7 +372,7 @@ class Tracker:
         layer_idxs = list(self.step_W_beta_alignment[steps[0]].keys())
         for layer_idx in layer_idxs:
             vals = [self.step_W_beta_alignment[e][layer_idx] for e in steps]
-            plt.plot(steps, vals, label="layer:{}".format(layer_idx))
+            plt.plot(steps, vals, marker='o', label="layer:{}".format(layer_idx))
         plt.xlabel("steps")
         plt.ylabel("$sim(W, \\beta^*)$")
         plt.legend()

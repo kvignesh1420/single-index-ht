@@ -32,13 +32,13 @@ if __name__ == "__main__":
         "d": 1000,
         "label_noise_std": 0.3,
         "tau": 0.2,
-        "num_epochs": 10,
-        "optimizer": "sgd",
+        "num_epochs": 1,
+        "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": 2000,
+        "lr": 0.5,
         "reg_lamba": 0.01,
-        "enable_weight_normalization": True,
+        "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 1

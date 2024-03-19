@@ -37,7 +37,7 @@ class Student2Layer(torch.nn.Module):
     def __init__(self, context):
         super().__init__()
         self.context = context
-        self.activation_fn = torch.tanh
+        self.activation_fn = torch.nn.Tanh()
         self.init_weights()
         self._assign_hooks()
 
