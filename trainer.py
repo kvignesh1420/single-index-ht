@@ -20,8 +20,9 @@ class Trainer:
     @torch.no_grad()
     def compute_last_layer_weight(self, Z, y_t):
         n = Z.shape[0]
+        h = Z.shape[1]
         I_h = torch.eye(Z.shape[1]).to(self.context["device"])
-        a_hat = torch.linalg.inv(Z.t() @ Z + self.context["reg_lamba"]*n*I_h) @ Z.t() @ y_t
+        a_hat = torch.linalg.inv(Z.t() @ Z + (self.context["reg_lamba"]/h)*n*I_h) @ Z.t() @ y_t
         return a_hat
 
     @torch.no_grad()
@@ -36,6 +37,7 @@ class Trainer:
         Z = student.affine_features[0]
         Z /= np.sqrt(self.context["d"])
         Z = student.activation_fn(Z)
+        Z /= np.sqrt(self.context["h"])
         a_hat = self.compute_last_layer_weight(Z=Z, y_t=y_t)
         pred = Z @ a_hat
         step_loss = loss_fn(pred, y_t)
@@ -51,6 +53,7 @@ class Trainer:
             Z = student.affine_features[0]
             Z /= np.sqrt(self.context["d"])
             Z = student.activation_fn(Z)
+            Z /= np.sqrt(self.context["h"])
             pred = Z @ a_hat
             loss = loss_fn(pred, y_t)
             step_loss += loss.detach().cpu().numpy() * X.shape[0]
