@@ -12,6 +12,12 @@ plt.rcParams.update({
 })
 from tracker import Tracker
 
+
+LR_SCHEDULER_FACTORY = {
+    "StepLR": torch.optim.lr_scheduler.StepLR
+}
+
+
 class Trainer:
     def __init__(self, context):
         self.context = context
@@ -81,10 +87,16 @@ class Trainer:
         optimizer = self.get_optimizer(student=student)
         self.tracker.plot_init_W_pc_and_beta_alignment(student=student, teacher=teacher)
         self.tracker.probe_weights(teacher=teacher, student=student, step=0)
-        self.tracker.probe_features(student=student, probe_loader=probe_loader, step=0)
+        # self.tracker.probe_features(student=student, probe_loader=probe_loader, step=0)
         self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, step=0)
         loss_fn = torch.nn.MSELoss()
         num_batches = int(np.ceil(self.context["n"]/self.context["batch_size"]))
+
+        # handle lr scheduling
+        if "lr_scheduler_cls" in self.context:
+            lr_scheduler_cls = LR_SCHEDULER_FACTORY[self.context["lr_scheduler_cls"]]
+            lr_scheduler = lr_scheduler_cls(optimizer=optimizer, **self.context["lr_scheduler_kwargs"])
+
         for epoch in tqdm(range(1, self.context["num_epochs"]+1)):
             epoch_loss = 0
             for batch_idx, (X, y_t) in enumerate(train_loader):
@@ -104,8 +116,11 @@ class Trainer:
                     # probe loader.
                     # self.tracker.store_training_loss(loss=epoch_loss, step=step)
                     self.tracker.probe_weights(teacher=teacher, student=student, step=step)
-                    self.tracker.probe_features(student=student, probe_loader=probe_loader, step=step)
+                    # self.tracker.probe_features(student=student, probe_loader=probe_loader, step=step)
                     self.eval(student=student, probe_loader=probe_loader, test_loader=test_loader, step=step)
+                # handle lr scheduling
+                if "lr_scheduler_cls" in self.context:
+                    lr_scheduler.step()
             epoch_loss /= self.context["n"]
             # logger.info("Epoch: {} training loss: {}".format(epoch, epoch_loss))
         self.plot_results()
@@ -117,13 +132,13 @@ class Trainer:
         self.tracker.plot_initial_final_weight_vals()
         self.tracker.plot_initial_final_weight_esd()
         self.tracker.plot_initial_final_weight_nolog_esd()
-        # self.tracker.plot_first_step_W1_M_alignment()
-        self.tracker.plot_all_steps_W_M_alignment()
-        self.tracker.plot_step_activation_stable_rank()
-        self.tracker.plot_step_activation_effective_ranks()
-        self.tracker.plot_initial_final_activation_vals()
-        self.tracker.plot_initial_final_activation_esd()
-        self.tracker.plot_step_KTA()
+        # self.tracker.plot_all_steps_W_M_alignment()
+
+        # self.tracker.plot_step_activation_stable_rank()
+        # self.tracker.plot_step_activation_effective_ranks()
+        # self.tracker.plot_initial_final_activation_vals()
+        # self.tracker.plot_initial_final_activation_esd()
+        # self.tracker.plot_step_KTA()
         self.tracker.plot_step_W_beta_alignment()
 
 class BulkTrainer:

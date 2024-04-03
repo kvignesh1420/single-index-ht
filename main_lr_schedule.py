@@ -32,16 +32,21 @@ if __name__ == "__main__":
         "d": 1000,
         "label_noise_std": 0.3,
         "tau": 0.2,
-        "num_epochs": 64,
+        "num_epochs": 10,
         "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
         "lr": 1,
+        "lr_scheduler_cls": "StepLR",
+        "lr_scheduler_kwargs": {
+            "step_size": 1,
+            "gamma": 0.2
+        },
         "reg_lamba": 0.01,
-        "enable_weight_normalization": True,
+        "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
-        "probe_freq_steps": 64
+        "probe_freq_steps": 10
     }
     context = setup_runtime_context(context=exp_context)
     setup_logging(context=context)

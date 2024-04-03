@@ -32,10 +32,10 @@ if __name__ == "__main__":
         "label_noise_std": 0.3,
         "tau": 0.2,
         "num_epochs": 1,
-        "optimizer": "adam",
+        "optimizer": "sgd",
         "momentum": 0,
         "weight_decay": 0,
-        "lr": [0.01, 0.08],
+        "lr": [0.1, 1, 10, 2000],
         "reg_lamba": 0.01,
         "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.

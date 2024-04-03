@@ -2,8 +2,10 @@ import logging
 logger = logging.getLogger(__name__)
 from collections import OrderedDict
 from tqdm import tqdm
+import os
 import torch
 import numpy as np
+import weightwatcher as ww
 import matplotlib.pyplot as plt
 plt.rcParams.update({
     'xtick.labelsize': 20,
@@ -84,6 +86,8 @@ class Tracker:
         self.step_W_beta_alignment[step][0] = W_beta_alignment
         logger.info("W_beta_alignment for step:{} layer: 0 = {}".format(step, W_beta_alignment))
 
+        # self.get_ww_summary(student=student, step=step)
+
         for idx, layer in enumerate(student.layers):
             W = layer.weight.data.clone()
             name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
@@ -105,6 +109,18 @@ class Tracker:
             if step not in self.step_weight_stable_rank:
                 self.step_weight_stable_rank[step] = OrderedDict()
             self.step_weight_stable_rank[step][idx] = W_stable_rank
+
+    @torch.no_grad()
+    def get_ww_summary(self, student, step):
+        # create ww compatible filepath for saving results
+        for idx, layer in enumerate(student.layers):
+            watcher = ww.WeightWatcher(model=layer)
+            ww_vis_dir = os.path.join(self.context["vis_dir"], "ww_step_{}_layer_{}".format(step, idx))
+            os.makedirs(ww_vis_dir, exist_ok=True)
+            details = watcher.analyze(plot=True, savefig=ww_vis_dir)
+            summary = watcher.get_summary(details)
+            logger.info("step: {} layer: {} ww_summary: {}".format(step, idx, summary))
+
 
     @torch.no_grad()
     def get_stable_rank(self, M):
@@ -629,7 +645,7 @@ class Tracker:
 
         # Plot 3D figure for inner products of left singular vectors
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(projection='3d')
         ax.scatter(x_left, y_left, z_left, c=z_left, cmap='viridis_r')
         # ax1.set_title('Inner Products of Left Singular Vectors')
         ax.set_xlabel('U_W', labelpad=15)
@@ -640,11 +656,10 @@ class Tracker:
         plt.savefig("{}_left.jpg".format(name))
         plt.clf()
         plt.close()
-        # ax1.view_init(30, 60)
 
         # Plot 3D figure for inner products of right singular vectors
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(projection='3d')
         ax.scatter(x_right, y_right, z_right, c=z_right, cmap='viridis_r')
         # ax2.set_title('Inner Products of Right Singular Vectors')
         ax.set_xlabel('V_W', labelpad=15)
