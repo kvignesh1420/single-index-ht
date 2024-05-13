@@ -67,9 +67,14 @@ def prepare_dataloaders(context, teacher):
     train_loader = DataLoader(train_dataset, **train_kwargs)
 
     # additional training data for computing feature metrics
-    probe_dataset = TeacherDataset(context=context, teacher=teacher, type="probe")
-    probe_kwargs = {"batch_size": context["n"], "shuffle": True}
-    probe_loader = DataLoader(probe_dataset, **probe_kwargs)
+    if context["fix_last_layer"]:
+        probe_dataset = TeacherDataset(context=context, teacher=teacher, type="probe")
+        probe_kwargs = {"batch_size": context["n"], "shuffle": True}
+        probe_loader = DataLoader(probe_dataset, **probe_kwargs)
+    else:
+        # probe loader will not be used in this case for computing loss.
+        # But we stay with the current dictionary output in case we need it.
+        probe_loader = train_loader
 
     test_dataset = TeacherDataset(context=context, teacher=teacher, type="test")
     test_kwargs = {"batch_size": context["batch_size_test"], "shuffle": True}

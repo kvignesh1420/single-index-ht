@@ -17,7 +17,7 @@ def prepare_data_hash(context):
     return parsed_data_context_hash
 
 def prepare_teacher_model_hash(context):
-    relevant_fields = ["d", "label_noise_std", "tau"]
+    relevant_fields = ["d", "label_noise_std"]
     model_context = { k: v for k, v in context.items() if k in relevant_fields  }
     _string_model_context = json.dumps(model_context, sort_keys=True).encode("utf-8")
     parsed_model_context_hash = hashlib.md5(_string_model_context).hexdigest()

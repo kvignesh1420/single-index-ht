@@ -273,7 +273,8 @@ class Tracker:
         # and compute the activation features
         for layer_idx, Z in student.affine_features.items():
             Z /= np.sqrt(self.context["d"]) if layer_idx==0 else np.sqrt(self.context["h"])
-            Z = student.activation_fn(Z)
+            if layer_idx < self.context["L"] - 1:
+                Z = student.activation_fn(Z)
             logger.info("Shape of Z: {} layer: {}".format(Z.shape, layer_idx))
             name="{}Z{}_step{}".format(self.context["vis_dir"], layer_idx, step)
             # vals

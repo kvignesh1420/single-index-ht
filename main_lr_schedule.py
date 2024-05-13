@@ -31,7 +31,6 @@ if __name__ == "__main__":
         "h": 1500,
         "d": 1000,
         "label_noise_std": 0.3,
-        "tau": 0.2,
         "num_epochs": 10,
         "optimizer": "adam",
         "momentum": 0,
@@ -46,7 +45,9 @@ if __name__ == "__main__":
         "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
-        "probe_freq_steps": 10
+        "probe_freq_steps": 10,
+        "probe_weights": True,
+        "probe_features": True
     }
     context = setup_runtime_context(context=exp_context)
     setup_logging(context=context)
