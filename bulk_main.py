@@ -41,7 +41,8 @@ if __name__ == "__main__":
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 1,
         "probe_weights": True,
-        "probe_features": True
+        "probe_features": True,
+        "fix_last_layer": True
     }
     base_context = setup_runtime_context(context=exp_context)
     setup_logging(context=base_context)
@@ -73,7 +74,8 @@ if __name__ == "__main__":
 
             student = get_student_model(context=context)
             # fix last layer during training
-            student.final_layer.requires_grad_(requires_grad=False)
+            if context["fix_last_layer"]:
+                student.final_layer.requires_grad_(requires_grad=False)
             students.append(student)
             contexts.append(context)
             logger.info("Student: {}".format(student))

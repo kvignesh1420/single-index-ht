@@ -39,15 +39,16 @@ if __name__ == "__main__":
         "lr_scheduler_cls": "StepLR",
         "lr_scheduler_kwargs": {
             "step_size": 1,
-            "gamma": 0.2
+            "gamma": 0.6
         },
         "reg_lamba": 0.01,
         "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
-        "probe_freq_steps": 10,
+        "probe_freq_steps": 1,
         "probe_weights": True,
-        "probe_features": True
+        "probe_features": False,
+        "fix_last_layer": True
     }
     context = setup_runtime_context(context=exp_context)
     setup_logging(context=context)
@@ -57,7 +58,8 @@ if __name__ == "__main__":
     teacher = get_teacher_model(context=context)
     student = get_student_model(context=context)
     # fix last layer during training
-    student.final_layer.requires_grad_(requires_grad=False)
+    if context["fix_last_layer"]:
+        student.final_layer.requires_grad_(requires_grad=False)
     logger.info("Teacher: {}".format(teacher))
     logger.info("Student: {}".format(student))
 
