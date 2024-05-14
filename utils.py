@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def prepare_data_hash(context):
-    relevant_fields = ["n", "n_test", "d"]
+    relevant_fields = ["n", "n_test", "d", "label_noise_std"]
     data_context = { k: v for k, v in context.items() if k in relevant_fields  }
     _string_data_context = json.dumps(data_context, sort_keys=True).encode("utf-8")
     parsed_data_context_hash = hashlib.md5(_string_data_context).hexdigest()

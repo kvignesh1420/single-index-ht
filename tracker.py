@@ -86,7 +86,8 @@ class Tracker:
         self.step_W_beta_alignment[step][0] = W_beta_alignment
         logger.info("W_beta_alignment for step:{} layer: 0 = {}".format(step, W_beta_alignment))
 
-        # self.get_ww_summary(student=student, step=step)
+        if self.context["enable_ww"]:
+            self.get_ww_summary(student=student, step=step)
 
         for idx, layer in enumerate(student.layers):
             W = layer.weight.data.clone()
@@ -291,12 +292,6 @@ class Tracker:
             if step not in self.step_activation_esd:
                 self.step_activation_esd[step] = OrderedDict()
             self.step_activation_esd[step][layer_idx] = S_ZtZ
-            # KTA
-            KTA = self.compute_KTA(Z=Z, y_t=y_t)
-            if step not in self.step_KTA:
-                self.step_KTA[step] = OrderedDict()
-            self.step_KTA[step][layer_idx] = KTA
-            logger.info("KTA for step:{} layer: {} = {}".format(step, layer_idx, KTA))
             # stable rank
             Z_stable_rank = self.get_stable_rank(M=Z)
             if step not in self.step_activation_stable_rank:
@@ -311,6 +306,12 @@ class Tracker:
                 "variant1": Z_effective_ranks[0],
                 "variant2": Z_effective_ranks[1]
             }
+            # KTA
+            KTA = self.compute_KTA(Z=Z, y_t=y_t)
+            if step not in self.step_KTA:
+                self.step_KTA[step] = OrderedDict()
+            self.step_KTA[step][layer_idx] = KTA
+            logger.info("KTA for step:{} layer: {} = {}".format(step, layer_idx, KTA))
 
     @torch.no_grad()
     def plot_step_activation_stable_rank(self):

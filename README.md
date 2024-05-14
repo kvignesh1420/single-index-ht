@@ -29,7 +29,7 @@ exp_context = {
         "momentum": 0,
         "weight_decay": 0,
         "lr": 1,
-        "reg_lamba": 0.01,
+        "reg_lambda": 0.01,
         "enable_weight_normalization": True,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.

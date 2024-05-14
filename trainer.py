@@ -36,7 +36,7 @@ class Trainer:
         n = Z.shape[0]
         h = Z.shape[1]
         I_h = torch.eye(Z.shape[1]).to(self.context["device"])
-        a_hat = torch.linalg.inv(Z.t() @ Z + (self.context["reg_lamba"]/h)*n*I_h) @ Z.t() @ y_t
+        a_hat = torch.linalg.inv(Z.t() @ Z + (self.context["reg_lambda"]/h)*n*I_h) @ Z.t() @ y_t
         return a_hat
 
     @torch.no_grad()
@@ -162,7 +162,7 @@ class Trainer:
             self.tracker.plot_initial_final_weight_vals()
             self.tracker.plot_initial_final_weight_esd()
             self.tracker.plot_initial_final_weight_nolog_esd()
-            # self.tracker.plot_all_steps_W_M_alignment()
+            self.tracker.plot_all_steps_W_M_alignment()
             self.tracker.plot_step_W_beta_alignment()
         if self.context["probe_features"]:
             self.tracker.plot_step_activation_stable_rank()
@@ -172,7 +172,7 @@ class Trainer:
             self.tracker.plot_step_KTA()
 
 
-class BulkTrainer:
+class OneStepBulkTrainer:
     def __init__(self, contexts, varying_params):
         self.contexts = contexts
         self.varying_params = varying_params
@@ -290,4 +290,61 @@ class BulkTrainer:
         plt.tight_layout()
         name="{}bulk_W_beta_alignment.jpg".format(context["bulk_vis_dir"])
         plt.savefig(name)
+        plt.clf()
+
+
+class MultiStepLossBulkTrainer:
+    def __init__(self, contexts, varying_params):
+        self.contexts = contexts
+        self.varying_params = varying_params
+        assert len(self.varying_params) == 1
+        self.trainers = []
+        for context in contexts:
+            trainer = Trainer(context=context)
+            self.trainers.append(trainer)
+
+    def run(self, teachers, students, train_loaders, test_loaders, probe_loaders):
+        for trainer, teacher, student, train_loader, test_loader, probe_loader in zip(self.trainers, teachers, students, train_loaders, test_loaders, probe_loaders):
+            trainer.run(
+                teacher=teacher,
+                student=student,
+                train_loader=train_loader,
+                test_loader=test_loader,
+                probe_loader=probe_loader,
+            )
+        self.plot_results()
+        return students
+
+    def plot_results(self):
+        self.plot_losses()
+
+    @torch.no_grad()
+    def plot_losses(self):
+        varying_param = self.varying_params[0]
+        for trainer, context in zip(self.trainers, self.contexts):
+            steps = list(trainer.tracker.val_loss.keys())
+            training_losses = list(trainer.tracker.training_loss.values())
+            val_losses = list(trainer.tracker.val_loss.values())
+            if varying_param == "reg_lambda":
+                label_name = "$\lambda$"
+            elif varying_param == "gamma":
+                label_name = "$\gamma$"
+            elif varying_param == "label_noise_std":
+                label_name = "$\\rho_{e}$"
+            else:
+                label_name = varying_param
+            if varying_param == "gamma":
+                label_value = context["lr_scheduler_kwargs"]["gamma"]
+            else:
+                label_value = context[varying_param]
+
+            plt.plot(steps, training_losses, marker='o', label="{}={}".format(label_name, label_value ))
+            plt.plot(steps, val_losses, marker='x', label="{}={}".format(label_name, label_value), linestyle='dashed')
+
+        plt.xlabel("step")
+        plt.ylabel("loss")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("{}bulk_losses.jpg".format(context["bulk_vis_dir"]))
         plt.clf()

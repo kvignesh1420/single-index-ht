@@ -24,26 +24,27 @@ def setup_logging(context):
 if __name__ == "__main__":
     exp_context = {
         "L": 2,
-        "n": 2000,
-        "batch_size": 2000,
+        "n": 8000,
+        "batch_size": 8000,
         "n_test": 200,
         "batch_size_test": 200,
         "h": 1500,
         "d": 1000,
-        "label_noise_std": 0.3,
+        "label_noise_std": 0.7,
         "num_epochs": 10,
         "optimizer": "adam",
         "momentum": 0,
         "weight_decay": 0,
         "lr": 1,
-        "reg_lamba": 0.01,
-        "enable_weight_normalization": True,
+        "reg_lambda": 1e-2,
+        "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 1,
         "probe_weights": True,
         "probe_features": False,
-        "fix_last_layer": True
+        "fix_last_layer": True,
+        "enable_ww": False # setting `enable_ww` to True will open plots that need to be closed manually.
     }
     context = setup_runtime_context(context=exp_context)
     setup_logging(context=context)

@@ -3,8 +3,7 @@ import sys
 from copy import deepcopy
 import logging
 logger = logging.getLogger(__name__)
-from torch.utils.data import DataLoader
-from trainer import BulkTrainer
+from trainer import OneStepBulkTrainer
 from data import prepare_dataloaders
 from models import get_student_model
 from models import get_teacher_model
@@ -23,8 +22,8 @@ def setup_logging(context):
 if __name__ == "__main__":
     exp_context = {
         "L": 2,
-        "n": 2000,
-        "batch_size": 2000,
+        "n": 8000,
+        "batch_size": 8000,
         "n_test": 200,
         "batch_size_test": 200,
         "h": 1500,
@@ -35,14 +34,15 @@ if __name__ == "__main__":
         "momentum": 0,
         "weight_decay": 0,
         "lr": [0.001, 0.01, 0.1, 1, 10, 100, 1000, 2000, 3000],
-        "reg_lamba": 0.01,
+        "reg_lambda": 0.01,
         "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 1,
         "probe_weights": True,
         "probe_features": True,
-        "fix_last_layer": True
+        "fix_last_layer": True,
+        "enable_ww": False # setting `enable_ww` to True will open plots that need to be closed manually.
     }
     base_context = setup_runtime_context(context=exp_context)
     setup_logging(context=base_context)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         logger.info("Teacher: {}".format(teacher))
 
     dataloaders = prepare_dataloaders(context=base_context, teacher=teacher)
-    bulk_student_trainer = BulkTrainer(contexts=contexts, varying_params=varying_params)
+    bulk_student_trainer = OneStepBulkTrainer(contexts=contexts, varying_params=varying_params)
     trained_students = bulk_student_trainer.run(
         teacher=teacher,
         students=students,

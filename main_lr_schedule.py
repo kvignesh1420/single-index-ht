@@ -41,14 +41,15 @@ if __name__ == "__main__":
             "step_size": 1,
             "gamma": 0.6
         },
-        "reg_lamba": 0.01,
+        "reg_lambda": 0.01,
         "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 1,
         "probe_weights": True,
         "probe_features": False,
-        "fix_last_layer": True
+        "fix_last_layer": True,
+        "enable_ww": False # setting `enable_ww` to True will open plots that need to be closed manually.
     }
     context = setup_runtime_context(context=exp_context)
     setup_logging(context=context)
