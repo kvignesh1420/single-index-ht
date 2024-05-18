@@ -11,11 +11,12 @@ from torch.utils.data import DataLoader
 from torch.distributions.multivariate_normal import MultivariateNormal
 
 class TeacherDataset(Dataset):
-    def __init__(self, context, teacher, type) -> None:
+    def __init__(self, context, teacher, type, use_cache=True) -> None:
         super().__init__()
         self.context = context
         self.teacher = teacher
         self.type = type
+        self.use_cache = use_cache
         self.prepare_data()
 
     def _prepare_fresh_data(self, n, d):
@@ -31,8 +32,11 @@ class TeacherDataset(Dataset):
             n = self.context["n"]
         d = self.context["d"]
         # try loading saved data
-        load_success = self.load_state()
-        if not load_success: self._prepare_fresh_data(n=n, d=d)
+        if self.use_cache:
+            load_success = self.load_state()
+            if not load_success: self._prepare_fresh_data(n=n, d=d)
+        else:
+            self._prepare_fresh_data(n=n, d=d)
 
     def load_state(self):
         print("loading {} X, y from {}".format(self.type, self.context["data_dir"]))
@@ -61,14 +65,14 @@ class TeacherDataset(Dataset):
         return self.X[index], self.y[index]
 
 
-def prepare_dataloaders(context, teacher):
-    train_dataset = TeacherDataset(context=context, teacher=teacher, type="train")
+def prepare_dataloaders(context, teacher, use_cache=True):
+    train_dataset = TeacherDataset(context=context, teacher=teacher, type="train", use_cache=use_cache)
     train_kwargs = {"batch_size": context["batch_size"], "shuffle": True}
     train_loader = DataLoader(train_dataset, **train_kwargs)
 
     # additional training data for computing feature metrics
     if context["fix_last_layer"]:
-        probe_dataset = TeacherDataset(context=context, teacher=teacher, type="probe")
+        probe_dataset = TeacherDataset(context=context, teacher=teacher, type="probe", use_cache=use_cache)
         probe_kwargs = {"batch_size": context["n"], "shuffle": True}
         probe_loader = DataLoader(probe_dataset, **probe_kwargs)
     else:
@@ -76,7 +80,7 @@ def prepare_dataloaders(context, teacher):
         # But we stay with the current dictionary output in case we need it.
         probe_loader = train_loader
 
-    test_dataset = TeacherDataset(context=context, teacher=teacher, type="test")
+    test_dataset = TeacherDataset(context=context, teacher=teacher, type="test", use_cache=use_cache)
     test_kwargs = {"batch_size": context["batch_size_test"], "shuffle": True}
     test_loader = DataLoader(test_dataset, **test_kwargs)
 

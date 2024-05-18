@@ -98,25 +98,25 @@ class Tracker:
                 self.step_weight_esd_pl_alpha[step] = OrderedDict()
             self.step_weight_esd_pl_alpha[step][idx] = esd_stats["alpha"]
 
-            name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
-            self.plot_tensor(M=W, name=name)
-            if step not in self.step_weight_vals:
-                self.step_weight_vals[step] = OrderedDict()
-            self.step_weight_vals[step][idx] = W
+            # name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
+            # self.plot_tensor(M=W, name=name)
+            # if step not in self.step_weight_vals:
+            #     self.step_weight_vals[step] = OrderedDict()
+            # self.step_weight_vals[step][idx] = W
 
-            S_W = torch.linalg.svdvals(W)
-            self.plot_svd(S_M=S_W, name=name)
-            WtW = W.t() @ W
-            S_WtW = torch.linalg.svdvals(WtW)
-            self.plot_esd(S_MtM=S_WtW, name=name)
-            if step not in self.step_weight_esd:
-                self.step_weight_esd[step] = OrderedDict()
-            self.step_weight_esd[step][idx] = S_WtW
+            # S_W = torch.linalg.svdvals(W)
+            # self.plot_svd(S_M=S_W, name=name)
+            # WtW = W.t() @ W
+            # S_WtW = torch.linalg.svdvals(WtW)
+            # self.plot_esd(S_MtM=S_WtW, name=name)
+            # if step not in self.step_weight_esd:
+            #     self.step_weight_esd[step] = OrderedDict()
+            # self.step_weight_esd[step][idx] = S_WtW
 
-            W_stable_rank = self.get_stable_rank(M=W)
-            if step not in self.step_weight_stable_rank:
-                self.step_weight_stable_rank[step] = OrderedDict()
-            self.step_weight_stable_rank[step][idx] = W_stable_rank
+            # W_stable_rank = self.get_stable_rank(M=W)
+            # if step not in self.step_weight_stable_rank:
+            #     self.step_weight_stable_rank[step] = OrderedDict()
+            # self.step_weight_stable_rank[step][idx] = W_stable_rank
 
     @torch.no_grad()
     def get_ww_summary(self, student, step):
@@ -389,35 +389,35 @@ class Tracker:
             if layer_idx < self.context["L"] - 1:
                 Z = student.activation_fn(Z)
             logger.info("Shape of Z: {} layer: {}".format(Z.shape, layer_idx))
-            name="{}Z{}_step{}".format(self.context["vis_dir"], layer_idx, step)
-            # vals
-            self.plot_tensor(M=Z, name=name)
-            if step not in self.step_activation_vals:
-                self.step_activation_vals[step] = OrderedDict()
-            self.step_activation_vals[step][layer_idx] = Z
-            # ESD
-            S_Z = torch.linalg.svdvals(Z)
-            self.plot_svd(S_M=S_Z, name=name)
-            ZtZ = Z.t() @ Z
-            S_ZtZ = torch.linalg.svdvals(ZtZ)
-            self.plot_esd(S_MtM=S_ZtZ, name=name)
-            if step not in self.step_activation_esd:
-                self.step_activation_esd[step] = OrderedDict()
-            self.step_activation_esd[step][layer_idx] = S_ZtZ
-            # stable rank
-            Z_stable_rank = self.get_stable_rank(M=Z)
-            if step not in self.step_activation_stable_rank:
-                self.step_activation_stable_rank[step] = OrderedDict()
-            self.step_activation_stable_rank[step][layer_idx] = Z_stable_rank
-            # effective ranks
-            K = Z @ Z.t()
-            Z_effective_ranks = self.get_effective_ranks(M=K)
-            if step not in self.step_activation_effective_ranks:
-                self.step_activation_effective_ranks[step] = OrderedDict()
-            self.step_activation_effective_ranks[step][layer_idx] = {
-                "variant1": Z_effective_ranks[0],
-                "variant2": Z_effective_ranks[1]
-            }
+            # name="{}Z{}_step{}".format(self.context["vis_dir"], layer_idx, step)
+            # # vals
+            # self.plot_tensor(M=Z, name=name)
+            # if step not in self.step_activation_vals:
+            #     self.step_activation_vals[step] = OrderedDict()
+            # self.step_activation_vals[step][layer_idx] = Z
+            # # ESD
+            # S_Z = torch.linalg.svdvals(Z)
+            # self.plot_svd(S_M=S_Z, name=name)
+            # ZtZ = Z.t() @ Z
+            # S_ZtZ = torch.linalg.svdvals(ZtZ)
+            # self.plot_esd(S_MtM=S_ZtZ, name=name)
+            # if step not in self.step_activation_esd:
+            #     self.step_activation_esd[step] = OrderedDict()
+            # self.step_activation_esd[step][layer_idx] = S_ZtZ
+            # # stable rank
+            # Z_stable_rank = self.get_stable_rank(M=Z)
+            # if step not in self.step_activation_stable_rank:
+            #     self.step_activation_stable_rank[step] = OrderedDict()
+            # self.step_activation_stable_rank[step][layer_idx] = Z_stable_rank
+            # # effective ranks
+            # K = Z @ Z.t()
+            # Z_effective_ranks = self.get_effective_ranks(M=K)
+            # if step not in self.step_activation_effective_ranks:
+            #     self.step_activation_effective_ranks[step] = OrderedDict()
+            # self.step_activation_effective_ranks[step][layer_idx] = {
+            #     "variant1": Z_effective_ranks[0],
+            #     "variant2": Z_effective_ranks[1]
+            # }
             # KTA
             KTA = self.compute_KTA(Z=Z, y_t=y_t)
             if step not in self.step_KTA:

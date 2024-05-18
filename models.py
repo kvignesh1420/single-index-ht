@@ -77,27 +77,35 @@ class Student2Layer(torch.nn.Module):
         out /= np.sqrt(self.context["h"])
         return out
 
-def get_teacher_model(context):
+def get_teacher_model(context, use_cache=True, refresh_cache=False):
     teacher = Teacher(context=context).to(context["device"])
     teacher_model_path = os.path.join(context["teacher_model_dir"], "model.pth")
-    if os.path.exists(teacher_model_path):
-        print("Loading the init state of teacher model from {}".format(teacher_model_path))
-        teacher.load_state_dict(torch.load(teacher_model_path))
-    else:
-        print("Saving the init state of teacher model to {}".format(teacher_model_path))
+    if use_cache:
+        if os.path.exists(teacher_model_path):
+            print("Loading the init state of teacher model from {}".format(teacher_model_path))
+            teacher.load_state_dict(torch.load(teacher_model_path))
+        else:
+            print("Saving the init state of teacher model to {}".format(teacher_model_path))
+            torch.save(teacher.state_dict(), teacher_model_path)
+    elif refresh_cache:
+        print("Refreshing the cache of the init state of teacher model to {}".format(teacher_model_path))
         torch.save(teacher.state_dict(), teacher_model_path)
     return teacher
 
-def get_student_model(context):
+def get_student_model(context, use_cache=True, refresh_cache=False):
     if context["L"] == 2:
         student = Student2Layer(context=context).to(context["device"])
         student_model_path = os.path.join(context["student_model_dir"], "model.pth")
-        if os.path.exists(student_model_path):
-            print("Loading the init state of student model from {}".format(student_model_path))
-            student.load_state_dict(torch.load(student_model_path))
-        else:
-            print("Saving the init state of student model to {}".format(student_model_path))
+        if use_cache:
+            if os.path.exists(student_model_path):
+                print("Loading the init state of student model from {}".format(student_model_path))
+                student.load_state_dict(torch.load(student_model_path))
+            else:
+                print("Saving the init state of student model to {}".format(student_model_path))
+                torch.save(student.state_dict(), student_model_path)
+        elif refresh_cache:
+            print("Refreshing the cache of the init state of student model to {}".format(student_model_path))
             torch.save(student.state_dict(), student_model_path)
         return student
     else:
-        sys.exit("Only L=2 is supported.")
+        sys.exit("Only L=2 is supported for the student model.")

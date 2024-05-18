@@ -14,6 +14,7 @@ plt.rcParams.update({
 from tracker import Tracker
 
 
+
 LR_SCHEDULER_FACTORY = {
     "StepLR": torch.optim.lr_scheduler.StepLR
 }
@@ -123,7 +124,7 @@ class Trainer:
             lr_scheduler_cls = LR_SCHEDULER_FACTORY[self.context["lr_scheduler_cls"]]
             lr_scheduler = lr_scheduler_cls(optimizer=optimizer, **self.context["lr_scheduler_kwargs"])
 
-        for epoch in tqdm(range(1, self.context["num_epochs"]+1)):
+        for epoch in range(1, self.context["num_epochs"]+1):
             epoch_loss = 0
             for batch_idx, (X, y_t) in enumerate(train_loader):
                 step = (epoch-1)*num_batches + batch_idx + 1
@@ -134,7 +135,7 @@ class Trainer:
                 student.zero_grad()
                 pred = student(X)
                 loss = loss_fn(pred, y_t)
-                loss.backward()
+                loss.backward(retain_graph=True)
                 optimizer.step()
                 epoch_loss += loss.detach().cpu().numpy() * X.shape[0]
                 if step%self.context["probe_freq_steps"] == 0:
@@ -156,171 +157,22 @@ class Trainer:
         return student
 
     def plot_results(self):
-        self.tracker.plot_losses()
+        # self.tracker.plot_losses()
         if self.context["probe_weights"]:
+            pass
             # self.tracker.plot_step_weight_stable_rank()
             # self.tracker.plot_initial_final_weight_vals()
             # self.tracker.plot_initial_final_weight_esd()
             # self.tracker.plot_initial_final_weight_nolog_esd()
             # self.tracker.plot_all_steps_W_M_alignment()
-            self.tracker.plot_step_W_beta_alignment()
+            # self.tracker.plot_step_W_beta_alignment()
         if self.context["probe_features"]:
+            pass
             # self.tracker.plot_step_activation_stable_rank()
             # self.tracker.plot_step_activation_effective_ranks()
             # self.tracker.plot_initial_final_activation_vals()
             # self.tracker.plot_initial_final_activation_esd()
-            self.tracker.plot_step_KTA()
-
-
-class OneStepBulkTrainer:
-    def __init__(self, contexts, varying_params):
-        self.contexts = contexts
-        self.varying_params = varying_params
-        # support only optimizer, lr as of now
-        assert self.varying_params == ["optimizer", "lr"]
-        self.trainers = []
-        for context in contexts:
-            trainer = Trainer(context=context)
-            self.trainers.append(trainer)
-
-    def run(self, teacher, students, train_loader, test_loader, probe_loader):
-        for trainer, student in zip(self.trainers, students):
-            trainer.run(
-                teacher=teacher,
-                student=student,
-                train_loader=train_loader,
-                test_loader=test_loader,
-                probe_loader=probe_loader,
-            )
-        self.plot_results()
-        return students
-
-    def plot_results(self):
-        self.plot_losses()
-        self.plot_step_KTA()
-        self.plot_step_W_beta_alignment()
-        self.plot_step_weight_esd_pl_alpha()
-
-    @torch.no_grad()
-    def plot_losses(self):
-        steps = list(self.trainers[0].tracker.val_loss.keys())
-        final_step = steps[-1]
-        # temporary assertion for one-step experiments.
-        assert len(steps) == 2
-
-        final_training_losses = defaultdict(list)
-        final_val_losses = defaultdict(list)
-        lrs = defaultdict(list)
-
-        for trainer, context in zip(self.trainers, self.contexts):
-            lrs[context["optimizer"]].append(context["lr"])
-            training_loss = trainer.tracker.training_loss[final_step]
-            final_training_losses[context["optimizer"]].append(training_loss)
-            val_loss = trainer.tracker.val_loss[final_step]
-            final_val_losses[context["optimizer"]].append(val_loss)
-
-        assert lrs["sgd"] == lrs["adam"]
-        lrs = np.log10(lrs["sgd"])
-        plt.plot(lrs, final_training_losses["sgd"], marker='o', label="GD:train")
-        plt.plot(lrs, final_training_losses["adam"], marker='o', label="FB-Adam:train")
-        plt.plot(lrs, final_val_losses["sgd"], marker='x', label="GD:test", linestyle='dashed')
-        plt.plot(lrs, final_val_losses["adam"], marker='x', label="FB-Adam:test", linestyle='dashed')
-
-        plt.xlabel("$\log_{10}(\eta)$")
-        plt.ylabel("loss")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("{}bulk_losses.jpg".format(context["bulk_vis_dir"]))
-        plt.clf()
-
-    @torch.no_grad()
-    def plot_step_KTA(self):
-        steps = list(self.trainers[0].tracker.step_KTA.keys())
-        final_step = steps[-1]
-        # temporary assertion for one-step experiments.
-        assert len(steps) == 2
-
-        layer_idx = 0
-        KTAs = defaultdict(list)
-        lrs = defaultdict(list)
-        for trainer, context in zip(self.trainers, self.contexts):
-            lrs[context["optimizer"]].append(context["lr"])
-            KTA = trainer.tracker.step_KTA[final_step][layer_idx]
-            KTAs[context["optimizer"]].append(KTA)
-
-        assert lrs["sgd"] == lrs["adam"]
-        lrs = np.log10(lrs["sgd"])
-
-        plt.plot(lrs, KTAs["sgd"], marker='o', label="GD")
-        plt.plot(lrs, KTAs["adam"], marker='o', label="FB-Adam")
-
-        plt.xlabel("$\log_{10}(\eta)$")
-        plt.ylabel("KTA")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        name="{}bulk_KTA.jpg".format(context["bulk_vis_dir"])
-        plt.savefig(name)
-        plt.clf()
-
-    @torch.no_grad()
-    def plot_step_W_beta_alignment(self):
-        steps = list(self.trainers[0].tracker.step_W_beta_alignment.keys())
-        final_step = steps[-1]
-        # temporary assertion for one-step experiments.
-        assert len(steps) == 2
-        layer_idx = 0
-        lrs = defaultdict(list)
-        sims = defaultdict(list)
-        for trainer, context in zip(self.trainers, self.contexts):
-            lrs[context["optimizer"]].append(context["lr"])
-            sim = trainer.tracker.step_W_beta_alignment[final_step][layer_idx]
-            sims[context["optimizer"]].append(sim)
-
-        assert lrs["sgd"] == lrs["adam"]
-        lrs = np.log10(lrs["sgd"])
-
-        plt.plot(lrs, sims["sgd"], marker='o', label="GD")
-        plt.plot(lrs, sims["adam"], marker='o', label="FB-Adam")
-
-        plt.xlabel("$\log_{10}(\eta)$")
-        plt.ylabel("$sim(W, \\beta^*)$")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        name="{}bulk_W_beta_alignment.jpg".format(context["bulk_vis_dir"])
-        plt.savefig(name)
-        plt.clf()
-    
-    @torch.no_grad()
-    def plot_step_weight_esd_pl_alpha(self):
-        steps = list(self.trainers[0].tracker.step_weight_esd_pl_alpha.keys())
-        final_step = steps[-1]
-        # temporary assertion for one-step experiments.
-        assert len(steps) == 2
-        layer_idx = 0
-        lrs = defaultdict(list)
-        pl_alphas = defaultdict(list)
-        for trainer, context in zip(self.trainers, self.contexts):
-            lrs[context["optimizer"]].append(context["lr"])
-            pl_alpha = trainer.tracker.step_weight_esd_pl_alpha[final_step][layer_idx]
-            pl_alphas[context["optimizer"]].append(pl_alpha)
-
-        assert lrs["sgd"] == lrs["adam"]
-        lrs = np.log10(lrs["sgd"])
-
-        plt.plot(lrs, pl_alphas["sgd"], marker='o', label="GD")
-        plt.plot(lrs, pl_alphas["adam"], marker='o', label="FB-Adam")
-
-        plt.xlabel("$\log_{10}(\eta)$")
-        plt.ylabel("PL_Alpha_Hill")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        name="{}bulk_W_esd_pl_alpha.jpg".format(context["bulk_vis_dir"])
-        plt.savefig(name)
-        plt.clf()
+            # self.tracker.plot_step_KTA()
 
 
 class MultiStepLossBulkTrainer:
