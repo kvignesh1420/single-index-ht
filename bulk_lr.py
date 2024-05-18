@@ -237,7 +237,7 @@ if __name__ == "__main__":
         "probe_features": True,
         "fix_last_layer": True,
         "enable_ww": False, # setting `enable_ww` to True will open plots that need to be closed manually.
-        "repeat": 5, # repeat counter for plotting means and std of results.
+        "repeat": 1, # repeat counter for plotting means and std of results.
     }
     base_context = setup_runtime_context(context=exp_context)
     setup_logging(context=base_context)

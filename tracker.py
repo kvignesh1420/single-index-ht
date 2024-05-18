@@ -91,12 +91,13 @@ class Tracker:
             self.get_ww_summary(student=student, step=step)
 
         for idx, layer in enumerate(student.layers):
-            W = layer.weight.data.clone()
+            if idx == 0:
+                W = layer.weight.data.clone()
 
-            esd_stats = self.net_esd_estimator(W=W)
-            if step not in self.step_weight_esd_pl_alpha:
-                self.step_weight_esd_pl_alpha[step] = OrderedDict()
-            self.step_weight_esd_pl_alpha[step][idx] = esd_stats["alpha"]
+                esd_stats = self.net_esd_estimator(W=W)
+                if step not in self.step_weight_esd_pl_alpha:
+                    self.step_weight_esd_pl_alpha[step] = OrderedDict()
+                self.step_weight_esd_pl_alpha[step][idx] = esd_stats["alpha"]
 
             # name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
             # self.plot_tensor(M=W, name=name)
@@ -135,7 +136,7 @@ class Tracker:
         W,
         EVALS_THRESH=0.00001,
         bins=100,
-        fix_fingers='xmin_mid',
+        fix_fingers='xmin_peak',
         xmin_pos=2,
         conv_norm=0.5,
         filter_zeros=False):
