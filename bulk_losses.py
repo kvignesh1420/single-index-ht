@@ -32,21 +32,20 @@ def setup_logging(context):
 
 
 class BulkLossPlotter:
-    def __init__(self, trainers, contexts, varying_params):
+    def __init__(self, trainers, contexts, varying_param):
         self.trainers = trainers
         self.contexts = contexts
-        self.varying_params = varying_params
-        assert len(self.varying_params) == 1
+        self.varying_param = varying_param
 
     def plot_results(self):
         self.plot_losses()
-    
-    def get_label_prefix(self, varying_param):
-        if varying_param == "reg_lambda":
+
+    def get_label_prefix(self):
+        if self.varying_param == "reg_lambda":
             label_prefix = "$\lambda$"
-        elif varying_param == "gamma":
+        elif self.varying_param == "gamma":
             label_prefix = "$\gamma$"
-        elif varying_param == "label_noise_std":
+        elif self.varying_param == "label_noise_std":
             label_prefix = "$\\rho_{e}$"
         else:
             label_prefix = varying_param
@@ -54,7 +53,6 @@ class BulkLossPlotter:
 
     @torch.no_grad()
     def plot_losses(self):
-        varying_param = self.varying_params[0]
         steps = list(self.trainers[0].tracker.val_loss.keys())
         
         training_losses = defaultdict(list)
@@ -77,7 +75,7 @@ class BulkLossPlotter:
             # plt.plot(steps, val_losses, marker='x', label="{}={}".format(label_name, label_value), linestyle='dashed')
         
         for param_val in param_values.keys():
-            label_prefix = self.get_label_prefix(varying_param=varying_param)
+            label_prefix = self.get_label_prefix()
             label_name = "{}={}".format(label_prefix, param_val)
 
             plot_metadata = [
@@ -107,13 +105,13 @@ class BulkLossPlotter:
 if __name__ == "__main__":
     exp_context = {
         "L": 2,
-        "n": [500, 2000, 4000, 8000],
+        "n": 8000,
         "batch_size": 8000,
         "n_test": 200,
         "batch_size_test": 200,
         "h": 1500,
         "d": 1000,
-        "label_noise_std": 0.3,
+        "label_noise_std": [0.1, 0.3, 0.5, 0.7],
         "num_epochs": 10,
         "optimizer": "adam",
         "momentum": 0,
@@ -145,34 +143,38 @@ if __name__ == "__main__":
 
     contexts = []
     trainers = []
-    varying_params = ["reg_lambda"]
-    n_list = base_context["n"]
+    varying_param = "label_noise_std"
+    param_vals = base_context[varying_param]
 
-    total_iterations = base_context["repeat"] * len(n_list)
+    total_iterations = base_context["repeat"] * len(param_vals)
+
+    students = []
+    for _ in param_vals:
+        student = get_student_model(context=base_context, use_cache=False, refresh_cache=True)
+        students.append(student)
 
     with tqdm(total=total_iterations) as pbar:
-        for repeat_count in range(base_context["repeat"]):
-            base_teacher = get_teacher_model(context=base_context, use_cache=False, refresh_cache=True)
-            _ = get_student_model(context=base_context, use_cache=False, refresh_cache=True)
-            dataloaders = prepare_dataloaders(context=base_context, teacher=base_teacher, use_cache=False)
+        for idx, param_val in enumerate(param_vals):
+            context = deepcopy(base_context)
+            context[varying_param] = param_val
+            if varying_param == "n":
+                context["batch_size"] = param_val
+            del context["device"]
+            context = setup_runtime_context(context=context)
+            context["vis_dir"] = context["bulk_vis_dir"] + "{}{}/".format(varying_param, param_val)
 
-            for idx, n in enumerate(n_list):
-                context = deepcopy(base_context)
-                context["n"] = n
+            if not os.path.exists(context["vis_dir"]):
+                os.makedirs(context["vis_dir"])
 
-                del context["device"]
-                context = setup_runtime_context(context=context)
-                
-                context["vis_dir"] = context["bulk_vis_dir"] + "reg_lambda{}/".format(reg_lambda)
+            teacher = get_teacher_model(context=context, use_cache=False, refresh_cache=True)
 
-                if not os.path.exists(context["vis_dir"]):
-                    os.makedirs(context["vis_dir"])
-
-                teacher = get_teacher_model(context=base_context, use_cache=True)
-                student = get_student_model(context=base_context, use_cache=True)
+            for repeat_count in range(base_context["repeat"]):
+                student = deepcopy(students[idx])
+                student._assign_hooks()
                 # fix last layer during training
                 if context["fix_last_layer"]:
                     student.final_layer.requires_grad_(requires_grad=False)
+                dataloaders = prepare_dataloaders(context=context, teacher=teacher, use_cache=False)
 
                 trainer = Trainer(context=context)
                 trained_student = trainer.run(
@@ -187,5 +189,42 @@ if __name__ == "__main__":
 
                 pbar.update(1)
 
-    plotter = BulkLossPlotter(trainers=trainers, contexts=contexts, varying_params=varying_params)
+    # with tqdm(total=total_iterations) as pbar:
+    #     for repeat_count in range(base_context["repeat"]):
+    #         base_teacher = get_teacher_model(context=base_context, use_cache=False, refresh_cache=True)
+    #         _ = get_student_model(context=base_context, use_cache=False, refresh_cache=True)
+    #         dataloaders = prepare_dataloaders(context=base_context, teacher=base_teacher, use_cache=False)
+
+    #         for idx, n in enumerate(n_list):
+    #             context = deepcopy(base_context)
+    #             context["n"] = n
+
+    #             del context["device"]
+    #             context = setup_runtime_context(context=context)
+                
+    #             context["vis_dir"] = context["bulk_vis_dir"] + "reg_lambda{}/".format(reg_lambda)
+
+    #             if not os.path.exists(context["vis_dir"]):
+    #                 os.makedirs(context["vis_dir"])
+
+    #             teacher = get_teacher_model(context=base_context, use_cache=True)
+    #             student = get_student_model(context=base_context, use_cache=True)
+    #             # fix last layer during training
+    #             if context["fix_last_layer"]:
+    #                 student.final_layer.requires_grad_(requires_grad=False)
+
+    #             trainer = Trainer(context=context)
+    #             trained_student = trainer.run(
+    #                 teacher=teacher,
+    #                 student=student,
+    #                 train_loader=dataloaders["train_loader"],
+    #                 test_loader=dataloaders["test_loader"],
+    #                 probe_loader=dataloaders["probe_loader"],
+    #             )
+    #             trainers.append(trainer)
+    #             contexts.append(context)
+
+    #             pbar.update(1)
+
+    plotter = BulkLossPlotter(trainers=trainers, contexts=contexts, varying_param=varying_param)
     plotter.plot_results()

@@ -30,7 +30,7 @@ if __name__ == "__main__":
         "batch_size_test": 200,
         "h": 1500,
         "d": 1000,
-        "label_noise_std": 0.7,
+        "label_noise_std": 0.3,
         "num_epochs": 10,
         "optimizer": "adam",
         "momentum": 0,
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         "enable_weight_normalization": False,
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
-        "probe_freq_steps": 1,
+        "probe_freq_steps": 10,
         "probe_weights": True,
         "probe_features": False,
         "fix_last_layer": True,

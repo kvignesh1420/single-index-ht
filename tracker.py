@@ -91,33 +91,32 @@ class Tracker:
             self.get_ww_summary(student=student, step=step)
 
         for idx, layer in enumerate(student.layers):
-            if idx == 0:
-                W = layer.weight.data.clone()
+            W = layer.weight.data.clone()
 
-                esd_stats = self.net_esd_estimator(W=W)
-                if step not in self.step_weight_esd_pl_alpha:
-                    self.step_weight_esd_pl_alpha[step] = OrderedDict()
-                self.step_weight_esd_pl_alpha[step][idx] = esd_stats["alpha"]
+            esd_stats = self.net_esd_estimator(W=W)
+            if step not in self.step_weight_esd_pl_alpha:
+                self.step_weight_esd_pl_alpha[step] = OrderedDict()
+            self.step_weight_esd_pl_alpha[step][idx] = esd_stats["alpha"]
 
-            # name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
-            # self.plot_tensor(M=W, name=name)
-            # if step not in self.step_weight_vals:
-            #     self.step_weight_vals[step] = OrderedDict()
-            # self.step_weight_vals[step][idx] = W
+            name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
+            self.plot_tensor(M=W, name=name)
+            if step not in self.step_weight_vals:
+                self.step_weight_vals[step] = OrderedDict()
+            self.step_weight_vals[step][idx] = W
 
-            # S_W = torch.linalg.svdvals(W)
-            # self.plot_svd(S_M=S_W, name=name)
-            # WtW = W.t() @ W
-            # S_WtW = torch.linalg.svdvals(WtW)
-            # self.plot_esd(S_MtM=S_WtW, name=name)
-            # if step not in self.step_weight_esd:
-            #     self.step_weight_esd[step] = OrderedDict()
-            # self.step_weight_esd[step][idx] = S_WtW
+            S_W = torch.linalg.svdvals(W)
+            self.plot_svd(S_M=S_W, name=name)
+            WtW = W.t() @ W
+            S_WtW = torch.linalg.svdvals(WtW)
+            self.plot_esd(S_MtM=S_WtW, name=name)
+            if step not in self.step_weight_esd:
+                self.step_weight_esd[step] = OrderedDict()
+            self.step_weight_esd[step][idx] = S_WtW
 
-            # W_stable_rank = self.get_stable_rank(M=W)
-            # if step not in self.step_weight_stable_rank:
-            #     self.step_weight_stable_rank[step] = OrderedDict()
-            # self.step_weight_stable_rank[step][idx] = W_stable_rank
+            W_stable_rank = self.get_stable_rank(M=W)
+            if step not in self.step_weight_stable_rank:
+                self.step_weight_stable_rank[step] = OrderedDict()
+            self.step_weight_stable_rank[step][idx] = W_stable_rank
 
     @torch.no_grad()
     def get_ww_summary(self, student, step):
@@ -136,7 +135,7 @@ class Tracker:
         W,
         EVALS_THRESH=0.00001,
         bins=100,
-        fix_fingers='xmin_peak',
+        fix_fingers='xmin_mid',
         xmin_pos=2,
         conv_norm=0.5,
         filter_zeros=False):
