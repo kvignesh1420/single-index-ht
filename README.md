@@ -13,6 +13,7 @@ $ pip install -r requirements.txt
 ## Experiments
 
 There are four files for running different kinds of experiments:
+NOTE: GPU support will be added soon.
 
 1. `main.py`: Script used to probe the weights, features, overlap matrices etc for a single run
 
