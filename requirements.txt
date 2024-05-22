@@ -3,3 +3,4 @@ matplotlib
 tqdm
 seaborn
 seaborn-image
+weightwatcher
