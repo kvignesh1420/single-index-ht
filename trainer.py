@@ -159,17 +159,11 @@ class Trainer:
     def plot_results(self):
         self.tracker.plot_losses()
         if self.context["probe_weights"]:
-            self.tracker.plot_step_weight_stable_rank()
             self.tracker.plot_initial_final_weight_vals()
             self.tracker.plot_initial_final_weight_esd()
             self.tracker.plot_initial_final_weight_nolog_esd()
             self.tracker.plot_step_W_beta_alignment()
-            # self.tracker.plot_all_steps_W_M_alignment()
+            self.tracker.plot_all_steps_W_M_alignment()
         if self.context["probe_features"]:
-            pass
-            # self.tracker.plot_step_activation_stable_rank()
-            # self.tracker.plot_step_activation_effective_ranks()
-            # self.tracker.plot_initial_final_activation_vals()
-            # self.tracker.plot_initial_final_activation_esd()
-            # self.tracker.plot_step_KTA()
+            self.tracker.plot_step_KTA()
 

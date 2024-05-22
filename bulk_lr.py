@@ -79,7 +79,7 @@ class BulkPlotter:
             means = np.array([ np.mean(loss_list[optimizer_val][np_lr]) for np_lr in np_lrs])
             stds = np.array([ np.std(loss_list[optimizer_val][np_lr]) for np_lr in np_lrs])
             plt.plot(np.log10(np_lrs), means, marker=marker, label=label, linestyle=linestyle, color=color)
-            plt.fill_between(np.log10(np_lrs), means - stds, means + stds, alpha=0.2)
+            plt.fill_between(np.log10(np_lrs), means - stds, means + stds, color=color, alpha=0.2)
 
         plt.xlabel("$\log_{10}(\eta)$")
         plt.ylabel("loss")
@@ -88,6 +88,53 @@ class BulkPlotter:
         plt.tight_layout()
         plt.savefig("{}bulk_losses.jpg".format(context["bulk_vis_dir"]))
         plt.clf()
+
+        plot_metadata = [
+            # train
+            (final_training_losses, "sgd", "o", "GD:train", "solid", "tab:blue"),
+            # (final_training_losses, "adam", "o", "FB-Adam:train", "solid", "tab:orange"),
+            # test
+            (final_val_losses, "sgd", "x", "GD:test", "dashed", "tab:green"),
+            # (final_val_losses, "adam", "x", "FB-Adam:test", "dashed", "tab:red")
+        ]
+
+        for loss_list, optimizer_val, marker, label, linestyle, color in plot_metadata:
+            means = np.array([ np.mean(loss_list[optimizer_val][np_lr]) for np_lr in np_lrs])
+            stds = np.array([ np.std(loss_list[optimizer_val][np_lr]) for np_lr in np_lrs])
+            plt.plot(np.log10(np_lrs), means, marker=marker, label=label, linestyle=linestyle, color=color)
+            plt.fill_between(np.log10(np_lrs), means - stds, means + stds, color=color, alpha=0.2)
+
+        plt.xlabel("$\log_{10}(\eta)$")
+        plt.ylabel("loss")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("{}bulk_losses_gd.jpg".format(context["bulk_vis_dir"]))
+        plt.clf()
+
+        plot_metadata = [
+            # train
+            # (final_training_losses, "sgd", "o", "GD:train", "solid", "tab:blue"),
+            (final_training_losses, "adam", "o", "FB-Adam:train", "solid", "tab:orange"),
+            # test
+            # (final_val_losses, "sgd", "x", "GD:test", "dashed", "tab:green"),
+            (final_val_losses, "adam", "x", "FB-Adam:test", "dashed", "tab:red")
+        ]
+
+        for loss_list, optimizer_val, marker, label, linestyle, color in plot_metadata:
+            means = np.array([ np.mean(loss_list[optimizer_val][np_lr]) for np_lr in np_lrs])
+            stds = np.array([ np.std(loss_list[optimizer_val][np_lr]) for np_lr in np_lrs])
+            plt.plot(np.log10(np_lrs), means, marker=marker, label=label, linestyle=linestyle, color=color)
+            plt.fill_between(np.log10(np_lrs), means - stds, means + stds, color=color, alpha=0.2)
+
+        plt.xlabel("$\log_{10}(\eta)$")
+        plt.ylabel("loss")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("{}bulk_losses_fb_adam.jpg".format(context["bulk_vis_dir"]))
+        plt.clf()
+
 
     @torch.no_grad()
     def plot_step_KTA(self):
@@ -172,28 +219,32 @@ class BulkPlotter:
 
     @torch.no_grad()
     def plot_step_weight_esd_pl_alpha(self):
-        steps = list(self.trainers[0].tracker.step_weight_esd_pl_alpha.keys())
+        steps = list(self.trainers[0].tracker.step_weight_esd_pl_alpha_hill.keys())
         final_step = steps[-1]
         # temporary assertion for one-step experiments.
         assert len(steps) == 2
         layer_idx = 0
 
-        pl_alphas = defaultdict(lambda: defaultdict(list))
+        pl_alphas_hill = defaultdict(lambda: defaultdict(list))
+        pl_alphas_mle_ks = defaultdict(lambda: defaultdict(list))
         lrs = defaultdict(lambda: defaultdict(int))
 
         for trainer, context in zip(self.trainers, self.contexts):
             lr = context["lr"]
             lrs[context["optimizer"]][lr] += 1
-            pl_alpha = trainer.tracker.step_weight_esd_pl_alpha[final_step][layer_idx]
-            pl_alphas[context["optimizer"]][lr].append(pl_alpha)
+            pl_alpha_hill = trainer.tracker.step_weight_esd_pl_alpha_hill[final_step][layer_idx]
+            pl_alphas_hill[context["optimizer"]][lr].append(pl_alpha_hill)
+
+            pl_alpha_mle_ks = trainer.tracker.step_weight_esd_pl_alpha_mle_ks[final_step][layer_idx]
+            pl_alphas_mle_ks[context["optimizer"]][lr].append(pl_alpha_mle_ks)
 
         assert lrs["sgd"] == lrs["adam"]
         np_lrs = np.sort(list(lrs["sgd"].keys()))
 
         plot_metadata = [
             # train
-            (pl_alphas, "sgd", "o", "GD", "solid", "tab:blue"),
-            (pl_alphas, "adam", "o", "FB-Adam", "solid", "tab:orange")
+            (pl_alphas_hill, "sgd", "o", "GD", "solid", "tab:blue"),
+            (pl_alphas_hill, "adam", "o", "FB-Adam", "solid", "tab:orange")
         ]
 
         for alphas_list, optimizer_val, marker, label, linestyle, color in plot_metadata:
@@ -207,7 +258,28 @@ class BulkPlotter:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        name="{}bulk_W_esd_pl_alpha.jpg".format(context["bulk_vis_dir"])
+        name="{}bulk_W_esd_pl_alpha_hill.jpg".format(context["bulk_vis_dir"])
+        plt.savefig(name)
+        plt.clf()
+
+        plot_metadata = [
+            # train
+            (pl_alphas_mle_ks, "sgd", "o", "GD", "solid", "tab:blue"),
+            (pl_alphas_mle_ks, "adam", "o", "FB-Adam", "solid", "tab:orange")
+        ]
+
+        for alphas_list, optimizer_val, marker, label, linestyle, color in plot_metadata:
+            means = np.array([ np.mean(alphas_list[optimizer_val][np_lr]) for np_lr in np_lrs])
+            stds = np.array([ np.std(alphas_list[optimizer_val][np_lr]) for np_lr in np_lrs])
+            plt.plot(np.log10(np_lrs), means, marker=marker, label=label, linestyle=linestyle, color=color)
+            plt.fill_between(np.log10(np_lrs), means - stds, means + stds, alpha=0.2)
+
+        plt.xlabel("$\log_{10}(\eta)$")
+        plt.ylabel("PL_Alpha_KS")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        name="{}bulk_W_esd_pl_alpha_mle_ks.jpg".format(context["bulk_vis_dir"])
         plt.savefig(name)
         plt.clf()
 
@@ -216,8 +288,8 @@ class BulkPlotter:
 if __name__ == "__main__":
     exp_context = {
         "L": 2,
-        "n": 8000,
-        "batch_size": 8000,
+        "n": 4000,
+        "batch_size": 4000,
         "n_test": 200,
         "batch_size_test": 200,
         "h": 1500,
@@ -237,7 +309,7 @@ if __name__ == "__main__":
         "probe_features": True,
         "fix_last_layer": True,
         "enable_ww": False, # setting `enable_ww` to True will open plots that need to be closed manually.
-        "repeat": 1, # repeat counter for plotting means and std of results.
+        "repeat": 5, # repeat counter for plotting means and std of results.
     }
     base_context = setup_runtime_context(context=exp_context)
     setup_logging(context=base_context)
