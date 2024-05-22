@@ -24,8 +24,8 @@ def setup_logging(context):
 if __name__ == "__main__":
     exp_context = {
         "L": 2,
-        "n": 8000,
-        "batch_size": 8000,
+        "n": 2000,
+        "batch_size": 2000,
         "n_test": 200,
         "batch_size_test": 200,
         "h": 1500,
@@ -42,7 +42,10 @@ if __name__ == "__main__":
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 10,
         "probe_weights": True,
-        "probe_features": False,
+        # set "plot_overlaps": True for plotting the overlaps between singular vectors.
+        # Note: make sure that "probe_freq_steps": 1 when this is set.
+        "plot_overlaps": False,
+        "probe_features": True,
         "fix_last_layer": True,
         "enable_ww": False # setting `enable_ww` to True will open plots that need to be closed manually.
     }

@@ -159,11 +159,13 @@ class Trainer:
     def plot_results(self):
         self.tracker.plot_losses()
         if self.context["probe_weights"]:
-            self.tracker.plot_initial_final_weight_vals()
-            self.tracker.plot_initial_final_weight_esd()
-            self.tracker.plot_initial_final_weight_nolog_esd()
             self.tracker.plot_step_W_beta_alignment()
-            self.tracker.plot_all_steps_W_M_alignment()
+            if not self.context.get("lightweight", False):
+                self.tracker.plot_initial_final_weight_vals()
+                self.tracker.plot_initial_final_weight_esd()
+                self.tracker.plot_initial_final_weight_nolog_esd()
+            if self.context.get("plot_overlaps", False):
+                self.tracker.plot_all_steps_W_M_alignment()
         if self.context["probe_features"]:
             self.tracker.plot_step_KTA()
 

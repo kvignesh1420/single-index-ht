@@ -1,3 +1,5 @@
 torch
 matplotlib
 tqdm
+seaborn
+seaborn-image

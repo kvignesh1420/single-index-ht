@@ -103,20 +103,21 @@ class Tracker:
                     self.step_weight_esd_pl_alpha_mle_ks[step] = OrderedDict()
                 self.step_weight_esd_pl_alpha_mle_ks[step][idx] = mle_ks_esd_stats["alpha"]
 
-            name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
-            self.plot_tensor(M=W, name=name)
-            if step not in self.step_weight_vals:
-                self.step_weight_vals[step] = OrderedDict()
-            self.step_weight_vals[step][idx] = W
+            if not self.context.get("lightweight", False):
+                name="{}W{}_step{}".format(self.context["vis_dir"], idx, step)
+                self.plot_tensor(M=W, name=name)
+                if step not in self.step_weight_vals:
+                    self.step_weight_vals[step] = OrderedDict()
+                self.step_weight_vals[step][idx] = W
 
-            S_W = torch.linalg.svdvals(W)
-            self.plot_svd(S_M=S_W, name=name)
-            WtW = W.t() @ W
-            S_WtW = torch.linalg.svdvals(WtW)
-            self.plot_esd(S_MtM=S_WtW, name=name)
-            if step not in self.step_weight_esd:
-                self.step_weight_esd[step] = OrderedDict()
-            self.step_weight_esd[step][idx] = S_WtW
+                S_W = torch.linalg.svdvals(W)
+                self.plot_svd(S_M=S_W, name=name)
+                WtW = W.t() @ W
+                S_WtW = torch.linalg.svdvals(WtW)
+                self.plot_esd(S_MtM=S_WtW, name=name)
+                if step not in self.step_weight_esd:
+                    self.step_weight_esd[step] = OrderedDict()
+                self.step_weight_esd[step][idx] = S_WtW
 
 
     @torch.no_grad()

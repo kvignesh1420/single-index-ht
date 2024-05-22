@@ -127,7 +127,13 @@ if __name__ == "__main__":
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 1,
+        # setting this to True will only plot the losses, sim(W, \beta) and KTA.
+        "lightweight": True,
         "probe_weights": False,
+        # set "plot_overlaps": True for plotting the overlaps between singular vectors.
+        # Note: make sure that "probe_freq_steps": 1 when this is set. The bulk runs 
+        # do not need this so no need to set this to True.
+        "plot_overlaps": False,
         "probe_features": False,
         "fix_last_layer": True,
         "enable_ww": False, # setting `enable_ww` to True will open plots that need to be closed manually.

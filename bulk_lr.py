@@ -288,8 +288,8 @@ class BulkPlotter:
 if __name__ == "__main__":
     exp_context = {
         "L": 2,
-        "n": 4000,
-        "batch_size": 4000,
+        "n": 2000,
+        "batch_size": 2000,
         "n_test": 200,
         "batch_size_test": 200,
         "h": 1500,
@@ -305,7 +305,13 @@ if __name__ == "__main__":
         # NOTE: The probing now occurs based on number of steps.
         # set appropriate values based on n, batch_size and num_epochs.
         "probe_freq_steps": 10,
+        # setting this to True will only plot the losses, sim(W, \beta) and KTA.
+        "lightweight": True,
         "probe_weights": True,
+        # set "plot_overlaps": True for plotting the overlaps between singular vectors.
+        # Note: make sure that "probe_freq_steps": 1 when this is set. The bulk runs dont need
+        # this so do not set it to True.
+        "plot_overlaps": False,
         "probe_features": True,
         "fix_last_layer": True,
         "enable_ww": False, # setting `enable_ww` to True will open plots that need to be closed manually.
