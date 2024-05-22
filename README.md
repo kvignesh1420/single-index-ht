@@ -12,32 +12,51 @@ $ pip install -r requirements.txt
 
 ## Experiments
 
-- As of now, modify the `exp_context` dictionary in `main.py` to configure the experiment. A sample value is shown below:
+There are four files for running different kinds of experiments:
+
+1. `main.py`: Script used to probe the weights, features, overlap matrices etc for a single run
+
+- One can modify the `exp_context` dictionary in `main.py` to configure the experiment. A sample value is shown below:
 ```py
 exp_context = {
-        "L": 2,
-        "n": 2000,
-        "batch_size": 2000,
-        "n_test": 200,
-        "batch_size_test": 200,
-        "h": 1500,
-        "d": 1000,
-        "label_noise_std": 0.3,
-        "tau": 0.2,
-        "num_epochs": 1,
-        "optimizer": "adam",
-        "momentum": 0,
-        "weight_decay": 0,
-        "lr": 1,
-        "reg_lambda": 0.01,
-        "enable_weight_normalization": True,
-        # NOTE: The probing now occurs based on number of steps.
-        # set appropriate values based on n, batch_size and num_epochs.
-        "probe_freq_steps": 1
-    }
+    "L": 2,
+    "n": 2000,
+    "batch_size": 2000,
+    "n_test": 200,
+    "batch_size_test": 200,
+    "h": 1500,
+    "d": 1000,
+    "label_noise_std": 0.3,
+    "num_epochs": 10,
+    "optimizer": "adam",
+    "momentum": 0,
+    "weight_decay": 0,
+    "lr": 1,
+    "reg_lambda": 1e-2,
+    "enable_weight_normalization": False,
+    # The probing occurs based on number of steps.
+    # set appropriate values based on n, batch_size and num_epochs.
+    "probe_freq_steps": 10,
+    # probe weights to plot the ESD and vals.
+    "probe_weights": True,
+    # set "plot_overlaps": True for plotting the overlaps between singular vectors.
+    # Note: make sure that "probe_freq_steps": 1 when this is set.
+    "plot_overlaps": False,
+    # probe features to plot the KTA
+    "probe_features": True,
+    "fix_last_layer": True,
+    "enable_ww": False # setting `enable_ww` to True will open plots that need to be closed manually.
+}
 ```
 
-- To run the experiment, use:
+2. `main_lr_schedule.py`: Script used to probe the weights, features, overlap matrices etc for a single run using a learning rate schedule.
+
+3. `bulk_lr.py`: Script used for faster experiments with multiple runs to plot the losses, KTA and PL Alphas for varying learning rates and optimizers
+
+4. `bulk_losses.py`: Script used for faster experiments with multiple runs to plot the losses for varying parameters that one can set in the context.
+
+
+- To run the experiment, simply run the script. For example:
 ```bash
 (.venv) $ python main.py
 ```
