@@ -4,6 +4,7 @@ Launcher script for experiments
 
 import sys
 import logging
+
 logger = logging.getLogger(__name__)
 from trainer import Trainer
 from data import prepare_dataloaders
@@ -11,12 +12,13 @@ from models import get_student_model
 from models import get_teacher_model
 from utils import setup_runtime_context
 
+
 def setup_logging(context):
     logging.basicConfig(
         filename=context["results_file"],
-        filemode='a',
-        format='%(asctime)s, %(name)s %(levelname)s %(message)s',
-        level=logging.INFO
+        filemode="a",
+        format="%(asctime)s, %(name)s %(levelname)s %(message)s",
+        level=logging.INFO,
     )
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
@@ -47,11 +49,11 @@ if __name__ == "__main__":
         "plot_overlaps": False,
         "probe_features": True,
         "fix_last_layer": True,
-        "enable_ww": False # setting `enable_ww` to True will open plots that need to be closed manually.
+        "enable_ww": False,  # setting `enable_ww` to True will open plots that need to be closed manually.
     }
     context = setup_runtime_context(context=exp_context)
     setup_logging(context=context)
-    logger.info("*"*100)
+    logger.info("*" * 100)
     logger.info("context: \n{}".format(context))
 
     teacher = get_teacher_model(context=context)

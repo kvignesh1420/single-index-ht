@@ -3,30 +3,35 @@ import sys
 from collections import defaultdict
 from copy import deepcopy
 import logging
+
 logger = logging.getLogger(__name__)
 from trainer import Trainer
 import numpy as np
 import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-plt.rcParams.update({
-    'xtick.labelsize': 20,
-    'ytick.labelsize': 20,
-    'axes.labelsize': 20,
-    'legend.fontsize': 14
-})
+
+plt.rcParams.update(
+    {
+        "xtick.labelsize": 20,
+        "ytick.labelsize": 20,
+        "axes.labelsize": 20,
+        "legend.fontsize": 14,
+    }
+)
 
 from data import prepare_dataloaders
 from models import get_student_model
 from models import get_teacher_model
 from utils import setup_runtime_context
 
+
 def setup_logging(context):
     logging.basicConfig(
         filename=context["results_file"],
-        filemode='a',
-        format='%(asctime)s, %(name)s %(levelname)s %(message)s',
-        level=logging.INFO
+        filemode="a",
+        format="%(asctime)s, %(name)s %(levelname)s %(message)s",
+        level=logging.INFO,
     )
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
@@ -54,9 +59,9 @@ class BulkLossPlotter:
     @torch.no_grad()
     def plot_losses(self):
         steps = list(self.trainers[0].tracker.val_loss.keys())
-        
+
         training_losses = defaultdict(list)
-        val_losses  = defaultdict(list)
+        val_losses = defaultdict(list)
         param_values = defaultdict(int)
 
         for trainer, context in zip(self.trainers, self.contexts):
@@ -65,7 +70,7 @@ class BulkLossPlotter:
             else:
                 param_val = context[varying_param]
             param_values[param_val] += 1
-            
+
             training_loss_arr = np.array(list(trainer.tracker.training_loss.values()))
             training_losses[param_val].append(training_loss_arr)
             val_loss_arr = np.array(list(trainer.tracker.val_loss.values()))
@@ -73,14 +78,14 @@ class BulkLossPlotter:
 
             # plt.plot(steps, training_losses, marker='o', label="{}={}".format(label_name, label_value ))
             # plt.plot(steps, val_losses, marker='x', label="{}={}".format(label_name, label_value), linestyle='dashed')
-        
+
         for param_val in param_values.keys():
             label_prefix = self.get_label_prefix()
             label_name = "{}={}".format(label_prefix, param_val)
 
             plot_metadata = [
                 (training_losses, "o", "solid"),
-                (val_losses, "x", "dashed")
+                (val_losses, "x", "dashed"),
             ]
 
             for losses, marker, linestyle in plot_metadata:
@@ -89,9 +94,10 @@ class BulkLossPlotter:
                 means = np.mean(arr, axis=0)
                 stds = np.std(arr, axis=0)
 
-                plt.plot(steps, means, marker=marker, label=label_name, linestyle=linestyle)
+                plt.plot(
+                    steps, means, marker=marker, label=label_name, linestyle=linestyle
+                )
                 plt.fill_between(steps, means - stds, means + stds, alpha=0.2)
-
 
         plt.xlabel("step")
         plt.ylabel("loss")
@@ -131,17 +137,17 @@ if __name__ == "__main__":
         "lightweight": True,
         "probe_weights": False,
         # set "plot_overlaps": True for plotting the overlaps between singular vectors.
-        # Note: make sure that "probe_freq_steps": 1 when this is set. The bulk runs 
+        # Note: make sure that "probe_freq_steps": 1 when this is set. The bulk runs
         # do not need this so no need to set this to True.
         "plot_overlaps": False,
         "probe_features": False,
         "fix_last_layer": True,
-        "enable_ww": False, # setting `enable_ww` to True will open plots that need to be closed manually.
-        "repeat": 5, # repeat counter for plotting means and std of results.
+        "enable_ww": False,  # setting `enable_ww` to True will open plots that need to be closed manually.
+        "repeat": 5,  # repeat counter for plotting means and std of results.
     }
     base_context = setup_runtime_context(context=exp_context)
     setup_logging(context=base_context)
-    logger.info("*"*100)
+    logger.info("*" * 100)
     logger.info("context: \n{}".format(base_context))
 
     # handle bulk experiment vis
@@ -156,7 +162,9 @@ if __name__ == "__main__":
 
     students = []
     for _ in param_vals:
-        student = get_student_model(context=base_context, use_cache=False, refresh_cache=True)
+        student = get_student_model(
+            context=base_context, use_cache=False, refresh_cache=True
+        )
         students.append(student)
 
     with tqdm(total=total_iterations) as pbar:
@@ -167,12 +175,16 @@ if __name__ == "__main__":
                 context["batch_size"] = param_val
             del context["device"]
             context = setup_runtime_context(context=context)
-            context["vis_dir"] = context["bulk_vis_dir"] + "{}{}/".format(varying_param, param_val)
+            context["vis_dir"] = context["bulk_vis_dir"] + "{}{}/".format(
+                varying_param, param_val
+            )
 
             if not os.path.exists(context["vis_dir"]):
                 os.makedirs(context["vis_dir"])
 
-            teacher = get_teacher_model(context=context, use_cache=False, refresh_cache=True)
+            teacher = get_teacher_model(
+                context=context, use_cache=False, refresh_cache=True
+            )
 
             for repeat_count in range(base_context["repeat"]):
                 student = deepcopy(students[idx])
@@ -180,7 +192,9 @@ if __name__ == "__main__":
                 # fix last layer during training
                 if context["fix_last_layer"]:
                     student.final_layer.requires_grad_(requires_grad=False)
-                dataloaders = prepare_dataloaders(context=context, teacher=teacher, use_cache=False)
+                dataloaders = prepare_dataloaders(
+                    context=context, teacher=teacher, use_cache=False
+                )
 
                 trainer = Trainer(context=context)
                 trained_student = trainer.run(
@@ -207,7 +221,7 @@ if __name__ == "__main__":
 
     #             del context["device"]
     #             context = setup_runtime_context(context=context)
-                
+
     #             context["vis_dir"] = context["bulk_vis_dir"] + "reg_lambda{}/".format(reg_lambda)
 
     #             if not os.path.exists(context["vis_dir"]):
@@ -232,5 +246,7 @@ if __name__ == "__main__":
 
     #             pbar.update(1)
 
-    plotter = BulkLossPlotter(trainers=trainers, contexts=contexts, varying_param=varying_param)
+    plotter = BulkLossPlotter(
+        trainers=trainers, contexts=contexts, varying_param=varying_param
+    )
     plotter.plot_results()
