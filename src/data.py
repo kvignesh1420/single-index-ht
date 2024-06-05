@@ -24,7 +24,7 @@ class TeacherDataset(Dataset):
     def _prepare_fresh_data(self, n, d):
         dist = MultivariateNormal(torch.zeros(d), torch.eye(d))
         self.X = dist.sample(sample_shape=[n])
-        self.y = self.teacher(X=self.X)
+        self.y = self.teacher(X=self.X.to(self.context["device"]))
         self.save_state()
 
     def prepare_data(self):

@@ -57,6 +57,7 @@ class Trainer:
         for batch_idx, (X, y_t) in enumerate(probe_loader):
             # ensure only one-batch of data for metrics on full-dataset
             assert batch_idx == 0
+        X, y_t = X.to(self.context["device"]), y_t.to(self.context["device"])
         _ = student(X)
         # capture hidden-layer features
         Z = student.affine_features[0]
@@ -68,6 +69,8 @@ class Trainer:
         step_loss = loss_fn(pred, y_t)
         self.tracker.store_training_loss(loss=step_loss, step=step)
         logger.info("Training (probe) loss: {}".format(step_loss))
+        del X
+        del y_t
 
         # use a_hat to compute loss
         step_loss = 0
@@ -81,7 +84,7 @@ class Trainer:
             Z /= np.sqrt(self.context["h"])
             pred = Z @ a_hat
             loss = loss_fn(pred, y_t)
-            step_loss += loss.detach().cpu().numpy() * X.shape[0]
+            step_loss += loss * X.shape[0]
         step_loss /= self.context["n_test"]
         self.tracker.store_val_loss(loss=step_loss, step=step)
         logger.info("Val loss: {}".format(step_loss))

@@ -58,21 +58,11 @@ class Tracker:
         self.val_loss[step] = loss
 
     @torch.no_grad()
-    def plot_val_loss(self):
-        steps = list(self.val_loss.keys())
-        losses = list(self.val_loss.values())
-        plt.plot(steps, losses, marker="o")
-        plt.grid(True)
-        plt.tight_layout()
-        plt.savefig("{}val_loss.jpg".format(self.context["vis_dir"]))
-        plt.clf()
-
-    @torch.no_grad()
     def plot_losses(self):
         # combined plots for easy viz
         steps = list(self.val_loss.keys())
-        training_losses = list(self.training_loss.values())
-        val_losses = list(self.val_loss.values())
+        training_losses = [loss.cpu() for loss in self.training_loss.values()]
+        val_losses = [loss.cpu() for loss in self.val_loss.values()]
         plt.plot(steps, training_losses, marker="o", label="train")
         plt.plot(steps, val_losses, marker="x", label="test", linestyle="dashed")
         plt.xlabel("steps")
@@ -198,7 +188,7 @@ class Tracker:
             i = int(len(nz_eigs) / xmin_pos)
             xmin = nz_eigs[i]
             n = float(N - i)
-            seq = torch.arange(n)
+            seq = torch.arange(n).to(self.context["device"])
             final_alpha = 1 + n / (torch.sum(log_nz_eigs[i:]) - n * log_nz_eigs[i])
             final_D = torch.max(
                 torch.abs(1 - (nz_eigs[i:] / xmin) ** (-final_alpha + 1) - seq / n)
@@ -209,8 +199,12 @@ class Tracker:
             if fix_fingers == "xmin_peak":
                 hist_nz_eigs = torch.log10(nz_eigs)
                 min_e, max_e = hist_nz_eigs.min(), hist_nz_eigs.max()
-                counts = torch.histc(hist_nz_eigs, bins, min=min_e, max=max_e)
-                boundaries = torch.linspace(min_e, max_e, bins + 1)
+                counts = torch.histc(hist_nz_eigs, bins, min=min_e, max=max_e).to(
+                    self.context["device"]
+                )
+                boundaries = torch.linspace(min_e, max_e, bins + 1).to(
+                    self.context["device"]
+                )
                 h = counts, boundaries
                 ih = torch.argmax(h[0])  #
                 xmin2 = 10 ** h[1][ih]
@@ -225,7 +219,7 @@ class Tracker:
                         break
 
                 n = float(N - i)
-                seq = torch.arange(n)
+                seq = torch.arange(n).to(self.context["device"])
                 alpha = 1 + n / (torch.sum(log_nz_eigs[i:]) - n * log_nz_eigs[i])
                 alphas[i] = alpha
                 if alpha > 1:
@@ -268,7 +262,7 @@ class Tracker:
 
     @torch.no_grad()
     def plot_tensor(self, M, name):
-        M = torch.flatten(M)
+        M = torch.flatten(M).detach().cpu()
         plt.hist(M, bins=100, density=True)
         plt.xlabel("val")
         plt.ylabel("density(val)")
@@ -418,6 +412,7 @@ class Tracker:
         for batch_idx, (X, y_t) in enumerate(probe_loader):
             # ensure only one-batch of data for metrics on full-dataset
             assert batch_idx == 0
+        X, y_t = X.to(self.context["device"]), y_t.to(self.context["device"])
         _ = student(X)
         # capture affine features of layers
         # and compute the activation features
@@ -501,7 +496,7 @@ class Tracker:
         steps = list(self.step_KTA.keys())
         layer_idxs = list(self.step_KTA[steps[0]].keys())
         for layer_idx in layer_idxs:
-            vals = [self.step_KTA[e][layer_idx] for e in steps]
+            vals = [self.step_KTA[e][layer_idx].cpu() for e in steps]
             plt.plot(steps, vals, marker="o", label="layer:{}".format(layer_idx))
         plt.xlabel("steps")
         plt.ylabel("KTA")
@@ -527,7 +522,7 @@ class Tracker:
         steps = list(self.step_W_beta_alignment.keys())
         layer_idxs = list(self.step_W_beta_alignment[steps[0]].keys())
         for layer_idx in layer_idxs:
-            vals = [self.step_W_beta_alignment[e][layer_idx] for e in steps]
+            vals = [self.step_W_beta_alignment[e][layer_idx].cpu() for e in steps]
             plt.plot(steps, vals, marker="o", label="layer:{}".format(layer_idx))
         plt.xlabel("steps")
         plt.ylabel("$sim(W, \\beta^*)$")
@@ -545,8 +540,8 @@ class Tracker:
         U_W, S_W, Vh_W = torch.linalg.svd(W, full_matrices=False)
         Vh_sim = torch.abs(Vh_W @ beta)
 
-        plt.plot(Vh_sim)
-        Vh_sim_max_index = np.argmax(Vh_sim)
+        plt.plot(Vh_sim.detach().cpu())
+        Vh_sim_max_index = np.argmax(Vh_sim.detach().cpu())
         Vh_sim_max_value = Vh_sim[Vh_sim_max_index]
         plt.axvline(
             x=Vh_sim_max_index,

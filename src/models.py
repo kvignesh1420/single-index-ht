@@ -31,7 +31,10 @@ class Teacher(torch.nn.Module):
         ## apply noise
         n = X.shape[0]
         label_noise_std = self.context["label_noise_std"]
-        out += torch.randn(size=[n]).unsqueeze(1) * label_noise_std
+        out += (
+            torch.randn(size=[n]).unsqueeze(1).to(self.context["device"])
+            * label_noise_std
+        )
         return out
 
 
@@ -76,7 +79,7 @@ class Student2Layer(torch.nn.Module):
 
 
 def get_teacher_model(context, use_cache=True, refresh_cache=False):
-    teacher = Teacher(context=context).to(context["device"])
+    teacher = Teacher(context=context)
     teacher_model_path = os.path.join(context["teacher_model_dir"], "model.pth")
     if use_cache:
         if os.path.exists(teacher_model_path):
@@ -100,12 +103,12 @@ def get_teacher_model(context, use_cache=True, refresh_cache=False):
             )
         )
         torch.save(teacher.state_dict(), teacher_model_path)
-    return teacher
+    return teacher.to(context["device"])
 
 
 def get_student_model(context, use_cache=True, refresh_cache=False):
     if context["L"] == 2:
-        student = Student2Layer(context=context).to(context["device"])
+        student = Student2Layer(context=context)
         student_model_path = os.path.join(context["student_model_dir"], "model.pth")
         if use_cache:
             if os.path.exists(student_model_path):
@@ -129,6 +132,6 @@ def get_student_model(context, use_cache=True, refresh_cache=False):
                 )
             )
             torch.save(student.state_dict(), student_model_path)
-        return student
+        return student.to(context["device"])
     else:
         sys.exit("Only L=2 is supported for the student model.")
