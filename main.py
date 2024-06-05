@@ -24,7 +24,7 @@ def setup_logging(context):
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
-if __name__ == "__main__":
+def main():
     exp_context = parse_config()
     context = setup_runtime_context(context=exp_context)
     setup_logging(context=context)
@@ -49,3 +49,7 @@ if __name__ == "__main__":
         test_loader=dataloaders["test_loader"],
         probe_loader=dataloaders["probe_loader"],
     )
+
+
+if __name__ == "__main__":
+    main()

@@ -25,7 +25,7 @@ def setup_logging(context):
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
-if __name__ == "__main__":
+def main():
     exp_context = parse_config()
     base_context = setup_runtime_context(context=exp_context)
     setup_logging(context=base_context)
@@ -85,3 +85,7 @@ if __name__ == "__main__":
 
     plotter = BulkLRPlotter(trainers=trainers, contexts=contexts)
     plotter.plot_results()
+
+
+if __name__ == "__main__":
+    main()
