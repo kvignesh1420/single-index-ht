@@ -245,22 +245,6 @@ class Tracker:
         return results
 
     @torch.no_grad()
-    def plot_step_weight_stable_rank(self):
-        steps = list(self.step_weight_stable_rank.keys())
-        layer_idxs = list(self.step_weight_stable_rank[steps[0]].keys())
-        for layer_idx in layer_idxs:
-            vals = [self.step_weight_stable_rank[e][layer_idx] for e in steps]
-            plt.plot(steps, vals, marker="o", label="layer:{}".format(layer_idx))
-            plt.xlabel("steps")
-            plt.ylabel("stable rank")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            name = "{}W{}_stable_rank.jpg".format(self.context["vis_dir"], layer_idx)
-            plt.savefig(name)
-            plt.clf()
-
-    @torch.no_grad()
     def plot_tensor(self, M, name):
         M = torch.flatten(M).detach().cpu()
         plt.hist(M, bins=100, density=True)
@@ -431,55 +415,6 @@ class Tracker:
                 self.step_KTA[step] = OrderedDict()
             self.step_KTA[step][layer_idx] = KTA
             logger.info("KTA for step:{} layer: {} = {}".format(step, layer_idx, KTA))
-
-    @torch.no_grad()
-    def plot_step_activation_stable_rank(self):
-        steps = list(self.step_activation_stable_rank.keys())
-        layer_idxs = list(self.step_activation_stable_rank[steps[0]].keys())
-        for layer_idx in layer_idxs:
-            vals = [self.step_activation_stable_rank[e][layer_idx] for e in steps]
-            plt.plot(steps, vals, marker="o", label="layer:{}".format(layer_idx))
-            plt.xlabel("steps")
-            plt.ylabel("stable rank")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            name = "{}Z{}_stable_rank.jpg".format(self.context["vis_dir"], layer_idx)
-            plt.savefig(name)
-            plt.clf()
-
-    @torch.no_grad()
-    def plot_step_activation_effective_ranks(self):
-        steps = list(self.step_activation_effective_ranks.keys())
-        layer_idxs = list(self.step_activation_effective_ranks[steps[0]].keys())
-        for layer_idx in layer_idxs:
-            for step in steps:
-                variant1_vals = self.step_activation_effective_ranks[step][layer_idx][
-                    "variant1"
-                ]
-                variant2_vals = self.step_activation_effective_ranks[step][layer_idx][
-                    "variant2"
-                ]
-                plt.plot(
-                    variant1_vals,
-                    marker="o",
-                    label="layer:{},step:{},r".format(layer_idx, step),
-                )
-                plt.plot(
-                    variant2_vals,
-                    marker="x",
-                    label="layer:{},step:{},R".format(layer_idx, step),
-                )
-            plt.xlabel("singular value idx")
-            plt.ylabel("effective ranks")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            name = "{}Z{}_effective_ranks.jpg".format(
-                self.context["vis_dir"], layer_idx
-            )
-            plt.savefig(name)
-            plt.clf()
 
     @torch.no_grad()
     def compute_KTA(self, Z, y_t):
