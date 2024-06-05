@@ -1,3 +1,4 @@
+varying_param: 'gamma'
 L: 2
 n: 8000
 batch_size: 8000
@@ -6,18 +7,18 @@ batch_size_test: 200
 h: 1500
 d: 1000
 label_noise_std: 0.3
-optimizer: adam
+optimizer: 'adam'
 momentum: 0
 weight_decay: 0
 lr: 1
-lr_scheduler_cls: StepLR
+lr_scheduler_cls: 'StepLR'
 lr_scheduler_kwargs:
   step_size: 1
   gamma:
     - 0.2
     - 0.4
-    - 0.4
     - 0.6
+    - 0.8
 reg_lambda: 0.01
 enable_weight_normalization: false
 # NOTE: The probing occurs based on number of steps.

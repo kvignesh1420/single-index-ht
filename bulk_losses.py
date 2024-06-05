@@ -39,7 +39,10 @@ def prepare_contexts(base_context, param_vals, varying_param):
     contexts = {}
     for param_val in param_vals:
         context = deepcopy(base_context)
-        context[varying_param] = param_val
+        if varying_param == "gamma":
+            context["lr_scheduler_kwargs"]["gamma"] = param_val
+        else:
+            context[varying_param] = param_val
         if varying_param == "n":
             context["batch_size"] = param_val
         del context["device"]
@@ -100,19 +103,20 @@ def train_with_same_dataloaders(base_context, contexts, total_iterations, param_
     with tqdm(total=total_iterations) as pbar:
         for _ in range(base_context["repeat"]):
             common_teacher = get_teacher_model(
-                context=context, use_cache=False, refresh_cache=True
+                context=base_context, use_cache=False, refresh_cache=True
             )
             # same dataloaders for all param_vals
             common_dataloaders = prepare_dataloaders(
                 context=base_context, teacher=common_teacher, use_cache=False
             )
             common_student = get_student_model(
-                context=context, use_cache=False, refresh_cache=True
+                context=base_context, use_cache=False, refresh_cache=True
             )
             for param_val in param_vals:
                 context = contexts[param_val]
                 # same student for varying param_val
                 student = deepcopy(common_student)
+                student._assign_hooks()
                 # fix last layer during training
                 if context["fix_last_layer"]:
                     student.final_layer.requires_grad_(requires_grad=False)
@@ -139,8 +143,11 @@ def main():
 
     # handle bulk experiment vis
     base_context["bulk_vis_dir"] = base_context["vis_dir"]
-    varying_param = "label_noise_std"
-    param_vals = base_context[varying_param]
+    varying_param = base_context["varying_param"]
+    if varying_param == "gamma":
+        param_vals = base_context["lr_scheduler_kwargs"]["gamma"]
+    else:
+        param_vals = base_context[varying_param]
     total_iterations = base_context["repeat"] * len(param_vals)
 
     # prepare lists

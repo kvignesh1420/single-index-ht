@@ -1,3 +1,4 @@
+varying_param: 'label_noise_std'
 L: 2
 n: 8000
 batch_size: 8000
@@ -10,7 +11,7 @@ label_noise_std:
   - 0.3
   - 0.5
   - 0.7
-optimizer: adam
+optimizer: 'adam'
 momentum: 0
 weight_decay: 0
 lr: 1

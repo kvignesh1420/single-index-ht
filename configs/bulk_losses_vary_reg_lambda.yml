@@ -1,3 +1,4 @@
+varying_param: 'reg_lambda'
 L: 2
 n: 8000
 batch_size: 8000
@@ -5,12 +6,8 @@ n_test: 200
 batch_size_test: 200
 h: 1500
 d: 1000
-label_noise_std:
-  - 0.1
-  - 0.3
-  - 0.5
-  - 0.7
-optimizer: adam
+label_noise_std: 0.3
+optimizer: 'adam'
 momentum: 0
 weight_decay: 0
 lr: 1

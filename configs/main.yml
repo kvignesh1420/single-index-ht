@@ -6,7 +6,7 @@ batch_size_test: 200
 h: 1500
 d: 1000
 label_noise_std: 0.3
-optimizer: adam
+optimizer: 'adam'
 momentum: 0
 weight_decay: 0
 lr: 1
