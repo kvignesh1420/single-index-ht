@@ -42,9 +42,9 @@ class BulkLRPlotter:
         for trainer, context in zip(self.trainers, self.contexts):
             lr = context["lr"]
             lrs[context["optimizer"]][lr] += 1
-            training_loss = trainer.tracker.training_loss[final_step]
+            training_loss = trainer.tracker.training_loss[final_step].cpu()
             final_training_losses[context["optimizer"]][lr].append(training_loss)
-            val_loss = trainer.tracker.val_loss[final_step]
+            val_loss = trainer.tracker.val_loss[final_step].cpu()
             final_val_losses[context["optimizer"]][lr].append(val_loss)
 
         assert lrs["sgd"] == lrs["adam"]
@@ -106,7 +106,7 @@ class BulkLRPlotter:
         for trainer, context in zip(self.trainers, self.contexts):
             lr = context["lr"]
             lrs[context["optimizer"]][lr] += 1
-            KTA = trainer.tracker.step_KTA[final_step][layer_idx]
+            KTA = trainer.tracker.step_KTA[final_step][layer_idx].cpu()
             KTAs[context["optimizer"]][lr].append(KTA)
 
         assert lrs["sgd"] == lrs["adam"]
@@ -157,7 +157,7 @@ class BulkLRPlotter:
         for trainer, context in zip(self.trainers, self.contexts):
             lr = context["lr"]
             lrs[context["optimizer"]][lr] += 1
-            sim = trainer.tracker.step_W_beta_alignment[final_step][layer_idx]
+            sim = trainer.tracker.step_W_beta_alignment[final_step][layer_idx].cpu()
             sims[context["optimizer"]][lr].append(sim)
 
         assert lrs["sgd"] == lrs["adam"]
@@ -335,10 +335,13 @@ class BulkLossPlotter:
                 param_val = context[self.varying_param]
             param_values[param_val] += 1
 
-            training_loss_arr = np.array(list(trainer.tracker.training_loss.values()))
-            training_losses[param_val].append(training_loss_arr)
-            val_loss_arr = np.array(list(trainer.tracker.val_loss.values()))
-            val_losses[param_val].append(val_loss_arr)
+            training_loss_arr = [
+                loss.cpu() for loss in trainer.tracker.training_loss.values()
+            ]
+            training_losses[param_val].append(np.array(training_loss_arr))
+
+            val_loss_arr = [loss.cpu() for loss in trainer.tracker.val_loss.values()]
+            val_losses[param_val].append(np.array(val_loss_arr))
 
         for param_val in param_values.keys():
             label_prefix = self.get_label_prefix()
