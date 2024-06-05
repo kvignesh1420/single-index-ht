@@ -13,37 +13,50 @@ $ pip install -r requirements.txt
 
 ## Experiments
 
-1. `main.py`: Script used to probe the weights, features, overlap matrices etc for a single run.
+### Single config runs
 
-Example:
+Probe the weights, features, overlap matrices etc for a single run.
+
+Run using: 
 ```bash
 (.venv) $ python main.py configs/main.yml
+```
 
-# execute with learning rate schedule
+Run with learning rate schedule 
+```bash
 (.venv) $ python main.py configs/main_lr_schedule.yml
 ```
 
-2. `bulk_lr.py`: Script used for faster experiments with multiple runs to plot the losses, KTA and PL Alphas for varying learning rates and optimizers.
+### Varying learning rates for GD/Adam
 
-Example:
+Experiments with multiple runs to plot the losses, KTA and PL Alphas for varying learning rates and optimizers.
+
+Run using:
 ```bash
 (.venv) $ python bulk_lr.py configs/bulk_lr.yml
 ```
 
-3. `bulk_losses.py`: Script used for faster experiments with multiple runs to plot the losses for varying parameters that one can set in the context.
+### Losses with varying parameters
 
-Example:
+Experiments with multiple runs to plot the losses for varying parameters that one can set in the context.
+
+Run with varying dataset size: `n`
 ```bash
-# vary dataset size: `n`
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_n.yml
+```
 
-# vary regularization parameter for regression: `reg_lambda`
+Run with varying regularization parameter for regression: `reg_lambda`
+```bash
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_reg_lambda.yml
+```
 
-# vary label noise: `label_noise_std`
+Run with varying label noise: `label_noise_std`
+```bash
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_label_noise_std.yml
+```
 
-# vary decay factor of StepLR learning rate schedule: `gamma`
+Run with varying decay factor of StepLR learning rate schedule: `gamma`
+```bash
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_step_lr_gamma.yml
 ```
 
