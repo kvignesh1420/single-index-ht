@@ -34,7 +34,6 @@ def main():
 
     trainers = []
     contexts = []
-    varying_params = ["optimizer", "lr"]
     optimizers = base_context["optimizer"]
     lrs = base_context["lr"]
     # handle bulk experiment vis
@@ -43,7 +42,7 @@ def main():
     total_iterations = base_context["repeat"] * len(optimizers) * len(lrs)
 
     with tqdm(total=total_iterations) as pbar:
-        for repeat_count in range(base_context["repeat"]):
+        for _ in range(base_context["repeat"]):
             # reset caches
             base_teacher = get_teacher_model(
                 context=base_context, use_cache=False, refresh_cache=True
@@ -56,7 +55,7 @@ def main():
             )
 
             for optimizer in optimizers:
-                for idx, lr in enumerate(lrs):
+                for lr in lrs:
                     context = deepcopy(base_context)
                     context["optimizer"] = optimizer
                     context["lr"] = lr
@@ -71,7 +70,7 @@ def main():
                         student.final_layer.requires_grad_(requires_grad=False)
 
                     trainer = Trainer(context=context)
-                    trained_student = trainer.run(
+                    trainer.run(
                         teacher=teacher,
                         student=student,
                         train_loader=dataloaders["train_loader"],

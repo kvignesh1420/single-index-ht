@@ -6,7 +6,6 @@ batch_size_test: 200
 h: 1500
 d: 1000
 label_noise_std: 0.3
-num_epochs: 10
 optimizer: adam
 momentum: 0
 weight_decay: 0
@@ -15,6 +14,7 @@ reg_lambda: 0.01
 enable_weight_normalization: false
 # NOTE: The probing occurs based on number of steps.
 # set appropriate values based on n, batch_size and num_epochs.
+num_epochs: 10
 probe_freq_steps: 10
 probe_weights: true
 # set "plot_overlaps": True for plotting the overlaps between singular vectors.

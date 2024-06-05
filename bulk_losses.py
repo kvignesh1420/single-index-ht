@@ -1,13 +1,9 @@
 import os
 import sys
-from collections import defaultdict
 from copy import deepcopy
 import logging
 
 logger = logging.getLogger(__name__)
-from trainer import Trainer
-import numpy as np
-import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -20,10 +16,13 @@ plt.rcParams.update(
     }
 )
 
-from data import prepare_dataloaders
-from models import get_student_model
-from models import get_teacher_model
-from utils import setup_runtime_context
+from src.trainer import Trainer
+from src.plotter import BulkLossPlotter
+from src.data import prepare_dataloaders
+from src.models import get_student_model
+from src.models import get_teacher_model
+from src.utils import setup_runtime_context
+from src.utils import parse_config
 
 
 def setup_logging(context):
@@ -36,158 +35,41 @@ def setup_logging(context):
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
-class BulkLossPlotter:
-    def __init__(self, trainers, contexts, varying_param):
-        self.trainers = trainers
-        self.contexts = contexts
-        self.varying_param = varying_param
-
-    def plot_results(self):
-        self.plot_losses()
-
-    def get_label_prefix(self):
-        if self.varying_param == "reg_lambda":
-            label_prefix = "$\lambda$"
-        elif self.varying_param == "gamma":
-            label_prefix = "$\gamma$"
-        elif self.varying_param == "label_noise_std":
-            label_prefix = "$\\rho_{e}$"
-        else:
-            label_prefix = varying_param
-        return label_prefix
-
-    @torch.no_grad()
-    def plot_losses(self):
-        steps = list(self.trainers[0].tracker.val_loss.keys())
-
-        training_losses = defaultdict(list)
-        val_losses = defaultdict(list)
-        param_values = defaultdict(int)
-
-        for trainer, context in zip(self.trainers, self.contexts):
-            if varying_param == "gamma":
-                param_val = context["lr_scheduler_kwargs"]["gamma"]
-            else:
-                param_val = context[varying_param]
-            param_values[param_val] += 1
-
-            training_loss_arr = np.array(list(trainer.tracker.training_loss.values()))
-            training_losses[param_val].append(training_loss_arr)
-            val_loss_arr = np.array(list(trainer.tracker.val_loss.values()))
-            val_losses[param_val].append(val_loss_arr)
-
-            # plt.plot(steps, training_losses, marker='o', label="{}={}".format(label_name, label_value ))
-            # plt.plot(steps, val_losses, marker='x', label="{}={}".format(label_name, label_value), linestyle='dashed')
-
-        for param_val in param_values.keys():
-            label_prefix = self.get_label_prefix()
-            label_name = "{}={}".format(label_prefix, param_val)
-
-            plot_metadata = [
-                (training_losses, "o", "solid"),
-                (val_losses, "x", "dashed"),
-            ]
-
-            for losses, marker, linestyle in plot_metadata:
-                arr = losses[param_val]
-                arr = np.array(arr)
-                means = np.mean(arr, axis=0)
-                stds = np.std(arr, axis=0)
-
-                plt.plot(
-                    steps, means, marker=marker, label=label_name, linestyle=linestyle
-                )
-                plt.fill_between(steps, means - stds, means + stds, alpha=0.2)
-
-        plt.xlabel("step")
-        plt.ylabel("loss")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("{}bulk_losses.jpg".format(context["bulk_vis_dir"]))
-        plt.clf()
-
-
-if __name__ == "__main__":
-    exp_context = {
-        "L": 2,
-        "n": 8000,
-        "batch_size": 8000,
-        "n_test": 200,
-        "batch_size_test": 200,
-        "h": 1500,
-        "d": 1000,
-        "label_noise_std": [0.1, 0.3, 0.5, 0.7],
-        "num_epochs": 10,
-        "optimizer": "adam",
-        "momentum": 0,
-        "weight_decay": 0,
-        "lr": 1,
-        # "lr_scheduler_cls": "StepLR",
-        # "lr_scheduler_kwargs": {
-        #     "step_size": 1,
-        #     "gamma": 0.4
-        # },
-        "reg_lambda": 1e-2,
-        "enable_weight_normalization": False,
-        # NOTE: The probing now occurs based on number of steps.
-        # set appropriate values based on n, batch_size and num_epochs.
-        "probe_freq_steps": 1,
-        # setting this to True will only plot the losses, sim(W, \beta) and KTA.
-        "lightweight": True,
-        "probe_weights": False,
-        # set "plot_overlaps": True for plotting the overlaps between singular vectors.
-        # Note: make sure that "probe_freq_steps": 1 when this is set. The bulk runs
-        # do not need this so no need to set this to True.
-        "plot_overlaps": False,
-        "probe_features": False,
-        "fix_last_layer": True,
-        "enable_ww": False,  # setting `enable_ww` to True will open plots that need to be closed manually.
-        "repeat": 5,  # repeat counter for plotting means and std of results.
-    }
-    base_context = setup_runtime_context(context=exp_context)
-    setup_logging(context=base_context)
-    logger.info("*" * 100)
-    logger.info("context: \n{}".format(base_context))
-
-    # handle bulk experiment vis
-    base_context["bulk_vis_dir"] = base_context["vis_dir"]
-
-    contexts = []
-    trainers = []
-    varying_param = "label_noise_std"
-    param_vals = base_context[varying_param]
-
-    total_iterations = base_context["repeat"] * len(param_vals)
-
-    students = []
-    for _ in param_vals:
-        student = get_student_model(
-            context=base_context, use_cache=False, refresh_cache=True
+def prepare_contexts(base_context, param_vals, varying_param):
+    contexts = {}
+    for param_val in param_vals:
+        context = deepcopy(base_context)
+        context[varying_param] = param_val
+        if varying_param == "n":
+            context["batch_size"] = param_val
+        del context["device"]
+        context = setup_runtime_context(context=context)
+        context["vis_dir"] = context["bulk_vis_dir"] + "{}{}/".format(
+            varying_param, param_val
         )
-        students.append(student)
+        if not os.path.exists(context["vis_dir"]):
+            os.makedirs(context["vis_dir"])
+        contexts[param_val] = context
+    return contexts
 
+
+def train_with_diff_dataloaders(base_context, contexts, total_iterations, param_vals):
+    """
+    When `varying_param` is `n` or `label_noise_std`, then for each `param_val`,
+    we create a fresh dataset `repeat` number of times to run the trainer.
+    """
+    trainers = []
     with tqdm(total=total_iterations) as pbar:
-        for idx, param_val in enumerate(param_vals):
-            context = deepcopy(base_context)
-            context[varying_param] = param_val
-            if varying_param == "n":
-                context["batch_size"] = param_val
-            del context["device"]
-            context = setup_runtime_context(context=context)
-            context["vis_dir"] = context["bulk_vis_dir"] + "{}{}/".format(
-                varying_param, param_val
-            )
-
-            if not os.path.exists(context["vis_dir"]):
-                os.makedirs(context["vis_dir"])
-
+        for param_val in param_vals:
+            context = contexts[param_val]
             teacher = get_teacher_model(
                 context=context, use_cache=False, refresh_cache=True
             )
-
-            for repeat_count in range(base_context["repeat"]):
-                student = deepcopy(students[idx])
+            common_student = get_student_model(
+                context=context, use_cache=False, refresh_cache=True
+            )
+            for _ in range(base_context["repeat"]):
+                student = deepcopy(common_student)
                 student._assign_hooks()
                 # fix last layer during training
                 if context["fix_last_layer"]:
@@ -195,9 +77,8 @@ if __name__ == "__main__":
                 dataloaders = prepare_dataloaders(
                     context=context, teacher=teacher, use_cache=False
                 )
-
                 trainer = Trainer(context=context)
-                trained_student = trainer.run(
+                trainer.run(
                     teacher=teacher,
                     student=student,
                     train_loader=dataloaders["train_loader"],
@@ -205,48 +86,82 @@ if __name__ == "__main__":
                     probe_loader=dataloaders["probe_loader"],
                 )
                 trainers.append(trainer)
-                contexts.append(context)
-
                 pbar.update(1)
+    return trainers
 
-    # with tqdm(total=total_iterations) as pbar:
-    #     for repeat_count in range(base_context["repeat"]):
-    #         base_teacher = get_teacher_model(context=base_context, use_cache=False, refresh_cache=True)
-    #         _ = get_student_model(context=base_context, use_cache=False, refresh_cache=True)
-    #         dataloaders = prepare_dataloaders(context=base_context, teacher=base_teacher, use_cache=False)
 
-    #         for idx, n in enumerate(n_list):
-    #             context = deepcopy(base_context)
-    #             context["n"] = n
+def train_with_same_dataloaders(base_context, contexts, total_iterations, param_vals):
+    """
+    When `varying_param` is `reg_lambda` or `gamma`, then for each `param_val`,
+    we use a common dataset `repeat` number of times to run the trainer. Thus,
+    ensuring a fair comparison between `param_val`s.
+    """
+    trainers = []
+    with tqdm(total=total_iterations) as pbar:
+        for _ in range(base_context["repeat"]):
+            common_teacher = get_teacher_model(
+                context=context, use_cache=False, refresh_cache=True
+            )
+            # same dataloaders for all param_vals
+            common_dataloaders = prepare_dataloaders(
+                context=base_context, teacher=common_teacher, use_cache=False
+            )
+            common_student = get_student_model(
+                context=context, use_cache=False, refresh_cache=True
+            )
+            for param_val in param_vals:
+                context = contexts[param_val]
+                # same student for varying param_val
+                student = deepcopy(common_student)
+                # fix last layer during training
+                if context["fix_last_layer"]:
+                    student.final_layer.requires_grad_(requires_grad=False)
 
-    #             del context["device"]
-    #             context = setup_runtime_context(context=context)
+                trainer = Trainer(context=context)
+                trainer.run(
+                    teacher=common_teacher,
+                    student=student,
+                    train_loader=common_dataloaders["train_loader"],
+                    test_loader=common_dataloaders["test_loader"],
+                    probe_loader=common_dataloaders["probe_loader"],
+                )
+                trainers.append(trainer)
+                pbar.update(1)
+    return trainers
 
-    #             context["vis_dir"] = context["bulk_vis_dir"] + "reg_lambda{}/".format(reg_lambda)
 
-    #             if not os.path.exists(context["vis_dir"]):
-    #                 os.makedirs(context["vis_dir"])
+def main():
+    exp_context = parse_config()
+    base_context = setup_runtime_context(context=exp_context)
+    setup_logging(context=base_context)
+    logger.info("*" * 100)
+    logger.info("context: \n{}".format(base_context))
 
-    #             teacher = get_teacher_model(context=base_context, use_cache=True)
-    #             student = get_student_model(context=base_context, use_cache=True)
-    #             # fix last layer during training
-    #             if context["fix_last_layer"]:
-    #                 student.final_layer.requires_grad_(requires_grad=False)
+    # handle bulk experiment vis
+    base_context["bulk_vis_dir"] = base_context["vis_dir"]
+    varying_param = "label_noise_std"
+    param_vals = base_context[varying_param]
+    total_iterations = base_context["repeat"] * len(param_vals)
 
-    #             trainer = Trainer(context=context)
-    #             trained_student = trainer.run(
-    #                 teacher=teacher,
-    #                 student=student,
-    #                 train_loader=dataloaders["train_loader"],
-    #                 test_loader=dataloaders["test_loader"],
-    #                 probe_loader=dataloaders["probe_loader"],
-    #             )
-    #             trainers.append(trainer)
-    #             contexts.append(context)
-
-    #             pbar.update(1)
-
-    plotter = BulkLossPlotter(
-        trainers=trainers, contexts=contexts, varying_param=varying_param
+    # prepare lists
+    contexts = prepare_contexts(
+        base_context=base_context, param_vals=param_vals, varying_param=varying_param
     )
+
+    if varying_param in ["n", "label_noise_std"]:
+        train_fn = train_with_diff_dataloaders
+    elif varying_param in ["reg_lambda", "gamma"]:
+        train_fn = train_with_same_dataloaders
+
+    trainers = train_fn(
+        base_context=base_context,
+        contexts=contexts,
+        total_iterations=total_iterations,
+        param_vals=param_vals,
+    )
+    plotter = BulkLossPlotter(trainers=trainers, varying_param=varying_param)
     plotter.plot_results()
+
+
+if __name__ == "__main__":
+    main()

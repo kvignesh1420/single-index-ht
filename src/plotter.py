@@ -298,3 +298,72 @@ class BulkLRPlotter:
         name = "{}bulk_W_esd_pl_alpha_mle_ks.jpg".format(context["bulk_vis_dir"])
         plt.savefig(name)
         plt.clf()
+
+
+class BulkLossPlotter:
+    def __init__(self, trainers, varying_param):
+        self.trainers = trainers
+        self.contexts = [trainer.context for trainer in self.trainers]
+        self.varying_param = varying_param
+
+    def plot_results(self):
+        self.plot_losses()
+
+    def get_label_prefix(self):
+        if self.varying_param == "reg_lambda":
+            label_prefix = "$\lambda$"
+        elif self.varying_param == "gamma":
+            label_prefix = "$\gamma$"
+        elif self.varying_param == "label_noise_std":
+            label_prefix = "$\\rho_{e}$"
+        else:
+            label_prefix = self.varying_param
+        return label_prefix
+
+    @torch.no_grad()
+    def plot_losses(self):
+        steps = list(self.trainers[0].tracker.val_loss.keys())
+
+        training_losses = defaultdict(list)
+        val_losses = defaultdict(list)
+        param_values = defaultdict(int)
+
+        for trainer, context in zip(self.trainers, self.contexts):
+            if self.varying_param == "gamma":
+                param_val = context["lr_scheduler_kwargs"]["gamma"]
+            else:
+                param_val = context[self.varying_param]
+            param_values[param_val] += 1
+
+            training_loss_arr = np.array(list(trainer.tracker.training_loss.values()))
+            training_losses[param_val].append(training_loss_arr)
+            val_loss_arr = np.array(list(trainer.tracker.val_loss.values()))
+            val_losses[param_val].append(val_loss_arr)
+
+        for param_val in param_values.keys():
+            label_prefix = self.get_label_prefix()
+            label_name = "{}={}".format(label_prefix, param_val)
+
+            plot_metadata = [
+                (training_losses, "o", "solid"),
+                (val_losses, "x", "dashed"),
+            ]
+
+            for losses, marker, linestyle in plot_metadata:
+                arr = losses[param_val]
+                arr = np.array(arr)
+                means = np.mean(arr, axis=0)
+                stds = np.std(arr, axis=0)
+
+                plt.plot(
+                    steps, means, marker=marker, label=label_name, linestyle=linestyle
+                )
+                plt.fill_between(steps, means - stds, means + stds, alpha=0.2)
+
+        plt.xlabel("step")
+        plt.ylabel("loss")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("{}bulk_losses.jpg".format(context["bulk_vis_dir"]))
+        plt.clf()
