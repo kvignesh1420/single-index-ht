@@ -1,8 +1,6 @@
-from collections import defaultdict
 import logging
 
 logger = logging.getLogger(__name__)
-from tqdm import tqdm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,7 +13,7 @@ plt.rcParams.update(
         "legend.fontsize": 14,
     }
 )
-from tracker import Tracker
+from src.tracker import Tracker
 
 
 LR_SCHEDULER_FACTORY = {"StepLR": torch.optim.lr_scheduler.StepLR}

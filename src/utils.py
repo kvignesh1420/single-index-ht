@@ -1,12 +1,26 @@
 """Utils for handling context and training"""
 
 import os
+import argparse
+import yaml
 import json
 import hashlib
 import torch
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def parse_config():
+    parser = argparse.ArgumentParser(
+        description="Arguments for running the experiments"
+    )
+    parser.add_argument("config_file", type=str, help="config file for the run")
+    parsed_args = parser.parse_args()
+
+    with open(parsed_args.config_file) as f:
+        exp_context = yaml.safe_load(f)
+    return exp_context
 
 
 def prepare_data_hash(context):

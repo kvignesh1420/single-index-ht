@@ -1,5 +1,6 @@
 torch
 matplotlib
+pyyaml
 tqdm
 seaborn
 seaborn-image

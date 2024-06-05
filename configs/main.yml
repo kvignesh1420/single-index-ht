@@ -1,0 +1,25 @@
+L: 2
+n: 2000
+batch_size: 2000
+n_test: 200
+batch_size_test: 200
+h: 1500
+d: 1000
+label_noise_std: 0.3
+num_epochs: 10
+optimizer: adam
+momentum: 0
+weight_decay: 0
+lr: 1
+reg_lambda: 0.01
+enable_weight_normalization: false
+# NOTE: The probing occurs based on number of steps.
+# set appropriate values based on n, batch_size and num_epochs.
+probe_freq_steps: 10
+probe_weights: true
+# set "plot_overlaps": True for plotting the overlaps between singular vectors.
+# Note: make sure that "probe_freq_steps": 1 when this is set.
+plot_overlaps: false
+probe_features: true
+fix_last_layer: true
+enable_ww: false  # setting `enable_ww` to True will open plots that need to be closed manually.
