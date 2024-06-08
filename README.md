@@ -1,63 +1,69 @@
-# Crafting Heavy-Tails in Weight Matrix Spectrum without Gradient Noise
+## Crafting Heavy-Tails in Weight Matrix Spectrum without Gradient Noise
 
-Explore various ways of generating heavy tails in the weight matrix spectrum without gradient noise. In particular, we train shallow neural networks
-with full batch GD/Adam and large learning rates for multiple steps.
+This repository explores various methods to generate heavy tails in the weight matrix spectrum of neural networks without the influence of gradient noise. We specifically train shallow neural networks using full-batch Gradient Descent (GD) or Adam optimizer with large learning rates over multiple steps.
 
 ## Setup
 
+To get started, set up your virtual environment and install the required dependencies:
+
 ```bash
-$ python3.9 -m virtualenv .venv
+$ python3.9 -m venv .venv
 $ source .venv/bin/activate
 $ pip install -r requirements.txt
 ```
 
 ## Experiments
 
-### Single config runs
+### Single Configuration Runs
 
-Probe the weights, features, overlap matrices etc for a single run.
+Investigate the properties of weights, features, overlap matrices, and more for a single configuration:
 
-Run using: 
 ```bash
 (.venv) $ python main.py configs/main.yml
 ```
 
-Run with learning rate schedule 
+To run with a learning rate schedule:
+
 ```bash
 (.venv) $ python main.py configs/main_lr_schedule.yml
 ```
 
-### Varying learning rates for GD/Adam
+### Varying Learning Rates for GD/Adam
 
-Experiments with multiple runs to plot the losses, KTA and PL Alphas for varying learning rates and optimizers.
+Conduct experiments with multiple runs to plot losses, Kernel Target Alignment (KTA), and Power Law (PL) Alphas for different learning rates and optimizers:
 
-Run using:
 ```bash
 (.venv) $ python bulk_lr.py configs/bulk_lr.yml
 ```
 
-### Losses with varying parameters
+### Losses with Varying Parameters
 
-Experiments with multiple runs to plot the losses for varying parameters that one can set in the context.
+Perform experiments with multiple runs to plot the losses for different parameter settings:
 
-Run with varying dataset size: `n`
+#### Varying Dataset Size: `n`
+
 ```bash
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_n.yml
 ```
 
-Run with varying regularization parameter for regression: `reg_lambda`
+#### Varying Regularization Parameter for Regression: `reg_lambda`
+
 ```bash
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_reg_lambda.yml
 ```
 
-Run with varying label noise: `label_noise_std`
+#### Varying Label Noise: `label_noise_std`
+
 ```bash
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_label_noise_std.yml
 ```
 
-Run with varying decay factor of StepLR learning rate schedule: `gamma`
+#### Varying Decay Factor of `StepLR` Learning Rate Schedule: `gamma`
+
 ```bash
 (.venv) $ python bulk_losses.py configs/bulk_losses_vary_step_lr_gamma.yml
 ```
 
-- The outputs are generated in the `out/` folder based on a hash value corresponding to the context.
+### Output
+
+The outputs of the experiments are stored in the `out/` directory, named according to a hash value based on the experiment context.
