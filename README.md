@@ -67,3 +67,15 @@ Perform experiments with multiple runs to plot the losses for different paramete
 ### Output
 
 The outputs of the experiments are stored in the `out/` directory, named according to a hash value based on the experiment context.
+
+## Citation
+
+```bibtex
+@misc{kothapalli2024crafting,
+      title={Crafting Heavy-Tails in Weight Matrix Spectrum without Gradient Noise}, 
+      author={Vignesh Kothapalli and Tianyu Pang and Shenyang Deng and Zongmin Liu and Yaoqing Yang},
+      year={2024},
+      eprint={2406.04657},
+      archivePrefix={arXiv},
+}
+```
