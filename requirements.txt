@@ -1,5 +1,5 @@
 torch==2.7.1
-matplotlib==3.8.2
+matplotlib==3.9.4
 pyyaml==6.0.1
 tqdm==4.66.3
 seaborn==0.13.2
