@@ -1,4 +1,4 @@
-## Crafting Heavy-Tails in Weight Matrix Spectrum without Gradient Noise
+## From Spikes to Heavy Tails: Unveiling the Spectral Evolution of Neural Networks
 
 This repository explores various methods to generate heavy tails in the weight matrix spectrum of neural networks without the influence of gradient noise. We specifically train shallow neural networks using full-batch Gradient Descent (GD) or Adam optimizer with large learning rates over multiple steps.
 
@@ -71,11 +71,13 @@ The outputs of the experiments are stored in the `out/` directory, named accordi
 ## Citation
 
 ```bibtex
-@misc{kothapalli2024crafting,
-      title={Crafting Heavy-Tails in Weight Matrix Spectrum without Gradient Noise}, 
+@article{kothapalli2025from,
+      title={From Spikes to Heavy Tails: Unveiling the Spectral Evolution of Neural Networks},
       author={Vignesh Kothapalli and Tianyu Pang and Shenyang Deng and Zongmin Liu and Yaoqing Yang},
-      year={2024},
-      eprint={2406.04657},
-      archivePrefix={arXiv},
+      journal={Transactions on Machine Learning Research},
+      issn={2835-8856},
+      year={2025},
+      url={https://openreview.net/forum?id=DJHB8eBUnt},
+      note={}
 }
 ```
