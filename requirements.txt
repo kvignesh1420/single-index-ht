@@ -1,6 +1,6 @@
 torch==2.8.0
 matplotlib==3.10.6
-pyyaml==6.0.2
+pyyaml==6.0.3
 tqdm==4.66.3
 seaborn==0.13.2
 seaborn-image==0.10.0
