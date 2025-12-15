@@ -4,4 +4,4 @@ pyyaml==6.0.3
 tqdm==4.66.3
 seaborn==0.13.2
 seaborn-image==0.10.0
-weightwatcher==0.7.5.5
+weightwatcher==0.7.6
