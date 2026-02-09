@@ -1,7 +1,7 @@
 torch==2.8.0
 matplotlib==3.10.8
 pyyaml==6.0.3
-tqdm==4.66.3
+tqdm==4.67.3
 seaborn==0.13.2
 seaborn-image==0.10.0
 weightwatcher==0.7.5.5
